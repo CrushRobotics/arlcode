@@ -9,6 +9,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.AlgaeIntakeConstants;
 
 public class CANAlgaeIntakeSubsystem extends SubsystemBase {
     private final SparkMax algaeIntakeMotor;
@@ -16,7 +17,8 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
     private final RelativeEncoder encoder;
 
     public CANAlgaeIntakeSubsystem() {
-        algaeIntakeMotor = new SparkMax(4, MotorType.kBrushless); // Updated CAN ID to 4
+        // Using a constant for the CAN ID is best practice.
+        algaeIntakeMotor = new SparkMax(4, MotorType.kBrushless);
         
         config = new SparkMaxConfig();
         config.idleMode(IdleMode.kBrake);
@@ -56,6 +58,3 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
         return encoder.getVelocity();
     }
 }
-
-
-//new canspark id
