@@ -18,7 +18,7 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
 
     public CANAlgaeIntakeSubsystem() {
         // Using a constant for the CAN ID is best practice.
-        algaeIntakeMotor = new SparkMax(4, MotorType.kBrushless);
+        algaeIntakeMotor = new SparkMax(AlgaeIntakeConstants.ALGAE_INTAKE_ID, MotorType.kBrushless);
         
         config = new SparkMaxConfig();
         config.idleMode(IdleMode.kBrake);
@@ -58,3 +58,4 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
         return encoder.getVelocity();
     }
 }
+
