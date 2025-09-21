@@ -1,36 +1,91 @@
 package frc.robot.subsystems;
 
-import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
-import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.util.Color;
-import static edu.wpi.first.units.Units.Meters;
-import frc.robot.LimelightHelpers;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.LedConstants;
 
 public class LEDSubsystem extends SubsystemBase {
-    private AddressableLED m_led;
-    private AddressableLEDBuffer m_ledBuffer;
-    double limeLightPerc;
-    private LEDPattern gradient;
-    private LEDPattern progressBar;
-    // private Distance kLedSpacing;
-    
+    private final AddressableLED m_led;
+    private final AddressableLEDBuffer m_ledBuffer;
+
+    // Enum to represent the different states of the LEDs
+    public enum LedState {
+        RAINBOW,
+        BLUE,
+        RED
+    }
+
+    private LedState m_currentState;
+
     public LEDSubsystem() {
-        limeLightPerc = LimelightHelpers.getTA("");
-        gradient = LEDPattern.gradient(LEDPattern.GradientType.kContinuous, Color.kCyan, Color.kOrange);
-        progressBar = gradient.mask(LEDPattern.progressMaskLayer(()-> limeLightPerc));
-        // Create an LED pattern that will display a rainbow across
-    
+        // Initialize the LED strip and buffer from constants
+        m_led = new AddressableLED(LedConstants.LED_PORT);
+        m_ledBuffer = new AddressableLEDBuffer(LedConstants.LED_LENGTH);
+        m_led.setLength(m_ledBuffer.getLength());
+
+        // Set the default state
+        m_currentState = LedState.RAINBOW;
+
+        // Start the LED output
+        m_led.start();
+    }
+
+    /**
+     * Cycles to the next LED state.
+     * RAINBOW -> BLUE -> RED -> RAINBOW
+     */
+    public void cycleState() {
+        switch (m_currentState) {
+            case RAINBOW:
+                m_currentState = LedState.BLUE;
+                break;
+            case BLUE:
+                m_currentState = LedState.RED;
+                break;
+            case RED:
+                m_currentState = LedState.RAINBOW;
+                break;
+        }
     }
 
     @Override
     public void periodic() {
-        // Update the buffer with the rainbow animation
-        //m_scrollingRainbow.applyTo(m_ledBuffer);
-        progressBar.applyTo(m_ledBuffer);
-        // Set the LEDs
+        // This method is called once per scheduler run and applies the current state to the buffer
+        switch (m_currentState) {
+            case RAINBOW:
+                setRainbow();
+                break;
+            case BLUE:
+                setSolidColor(Color.kBlue);
+                break;
+            case RED:
+                setSolidColor(Color.kRed);
+                break;
+        }
+        // Write the buffer to the LED strip
         m_led.setData(m_ledBuffer);
     }
+
+    /**
+     * Fills the buffer with a solid color.
+     * @param color The color to set.
+     */
+    private void setSolidColor(Color color) {
+        for (var i = 0; i < m_ledBuffer.getLength(); i++) {
+            m_ledBuffer.setLED(i, color);
+        }
+    }
+
+    /**
+     * Fills the buffer with a rainbow pattern.
+     */
+    private void setRainbow() {
+        for (var i = 0; i < m_ledBuffer.getLength(); i++) {
+            final var hue = (int) ((System.currentTimeMillis() / 10) + (i * 180.0 / m_ledBuffer.getLength())) % 180;
+            m_ledBuffer.setHSV(i, hue, 255, 128);
+        }
+    }
 }
+
