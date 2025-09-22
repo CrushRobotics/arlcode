@@ -55,8 +55,8 @@ public class RobotContainer {
   
   // Hardware for the autonomous command
   private final CANBus kCANBus = new CANBus();
-  public final TalonFX leftLeader = new TalonFX(Constants.DriveConstants.LEFT_LEADER_ID, kCANBus);
-  public final TalonFX rightLeader = new TalonFX(Constants.DriveConstants.RIGHT_LEADER_ID, kCANBus);
+  public final TalonFX leftLeader = new TalonFX(8, kCANBus);
+  public final TalonFX rightLeader = new TalonFX(7, kCANBus);
   
   private final Timer timer = new Timer();
 
