@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.FunctionalCommand;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.AlgaeCommand;
@@ -31,8 +32,10 @@ import frc.robot.subsystems.CANCoralIntakeSubsystem;
 import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 import frc.robot.subsystems.ClimberSubsystem;
+import frc.robot.subsystems.LEDSubsystem;
 
 public class RobotContainer {
+  // The robot's subsystems
   private final CANDriveSubsystem driveSubsystem = new CANDriveSubsystem();
   private final CANAlgaeSubsystem algaeSubsystem = new CANAlgaeSubsystem();
   private final CANElevatorSubsystem elevatorSubsystem = new CANElevatorSubsystem();
@@ -40,7 +43,9 @@ public class RobotContainer {
   private final CANAlgaeIntakeSubsystem algaeIntakeSubsystem = new CANAlgaeIntakeSubsystem();
   private final CANCoralIntakeSubsystem coralIntakeSubsystem = new CANCoralIntakeSubsystem();
   private final ClimberSubsystem climberSubsystem = new ClimberSubsystem();
+  private final LEDSubsystem ledSubsystem = new LEDSubsystem();
 
+  // The driver's controller
   private final CommandXboxController driverController = new CommandXboxController(
       OperatorConstants.DRIVER_CONTROLLER_PORT);
 
@@ -48,9 +53,10 @@ public class RobotContainer {
   
   private final SendableChooser<Command> autoChooser = new SendableChooser<>();
   
+  // Hardware for the autonomous command
   private final CANBus kCANBus = new CANBus();
-  public final TalonFX leftLeader = new TalonFX(8, kCANBus);
-  public final TalonFX rightLeader = new TalonFX(7, kCANBus);
+  public final TalonFX leftLeader = new TalonFX(Constants.DriveConstants.LEFT_LEADER_ID, kCANBus);
+  public final TalonFX rightLeader = new TalonFX(Constants.DriveConstants.RIGHT_LEADER_ID, kCANBus);
   
   private final Timer timer = new Timer();
 
@@ -60,6 +66,7 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
+    // Operator Controller Bindings
     operatorController.y().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
     operatorController.a().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
     operatorController.rightTrigger().whileTrue(new MoveArmCommand(armSubsystem, ArmDirection.Up));
@@ -67,10 +74,14 @@ public class RobotContainer {
     operatorController.leftBumper().whileTrue(new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Up));
     operatorController.rightBumper().whileTrue(new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Down));
 
+    // Driver Controller Bindings
     driverController.rightTrigger().onTrue(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Down, algaeIntakeSubsystem));
     driverController.rightTrigger().onFalse(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Up, algaeIntakeSubsystem));
     driverController.leftBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     driverController.rightBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
+    
+    // Bind the X button to an inline InstantCommand that cycles the LED state.
+    driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
   }
 
   public Command getAutonomousCommand() {
@@ -94,4 +105,3 @@ public class RobotContainer {
     );
   }
 }
-
