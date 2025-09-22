@@ -14,7 +14,8 @@ public class LEDSubsystem extends SubsystemBase {
     public enum LedState {
         RAINBOW,
         BLUE,
-        RED
+        RED,
+        ORANGE
     }
 
     private LedState m_currentState;
@@ -47,6 +48,9 @@ public class LEDSubsystem extends SubsystemBase {
             case RED:
                 m_currentState = LedState.RAINBOW;
                 break;
+            case ORANGE:
+                m_currentState = LedState.ORANGE;
+                break;
         }
     }
 
@@ -62,6 +66,9 @@ public class LEDSubsystem extends SubsystemBase {
                 break;
             case RED:
                 setSolidColor(Color.kRed);
+                break;
+            case ORANGE:
+                setSolidColor(Color.kOrange);
                 break;
         }
         // Write the buffer to the LED strip
