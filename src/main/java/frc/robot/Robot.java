@@ -6,10 +6,6 @@ package frc.robot;
 
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.wpilibj.AddressableLED;
-import edu.wpi.first.wpilibj.AddressableLEDBuffer;
-import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -20,20 +16,9 @@ import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.util.Color;
-
-import static edu.wpi.first.units.Units.Meters;
-import static edu.wpi.first.units.Units.MetersPerSecond;
 
 public class Robot extends TimedRobot {
   
-  private AddressableLED m_Led;
-  private AddressableLEDBuffer m_LedBuffer;
-  private final LEDPattern gradient = LEDPattern.gradient(LEDPattern.GradientType.kContinuous, Color.kBlue, Color.kDarkOrange);
-  private static final Distance kLedSpacing = Meters.of(1 / 120.0);
-   private final LEDPattern m_scrollingRainbow =
-   gradient.scrollAtAbsoluteSpeed(MetersPerSecond.of(.6), kLedSpacing);
-
   double deadzone = 0.2;	//variable for amount of deadzone
   
   private final CANBus kCANBus = new CANBus();
@@ -77,21 +62,11 @@ public class Robot extends TimedRobot {
 
     // Used to track usage of the KitBot code, please do not remove
     HAL.report(tResourceType.kResourceType_Framework, 9);
-    
-    m_Led = new AddressableLED(5);
-    m_LedBuffer = new AddressableLEDBuffer(142);
-    m_Led.setLength(m_LedBuffer.getLength());
-
-    m_Led.setData(m_LedBuffer);
-    m_Led.start();
   }
 
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
-
-    m_scrollingRainbow.applyTo(m_LedBuffer);
-    m_Led.setData(m_LedBuffer);
   }
 
   @Override
