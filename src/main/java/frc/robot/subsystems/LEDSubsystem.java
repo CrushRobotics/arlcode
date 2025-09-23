@@ -2,20 +2,29 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
+import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.LedConstants;
+import edu.wpi.first.units.measure.Distance;
+import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.MetersPerSecond;
 
 public class LEDSubsystem extends SubsystemBase {
     private final AddressableLED m_led;
     private final AddressableLEDBuffer m_ledBuffer;
 
+    // The user's desired scrolling gradient pattern
+    private final LEDPattern gradient = LEDPattern.gradient(LEDPattern.GradientType.kContinuous, Color.kBlue, Color.kDarkOrange);
+    private static final Distance kLedSpacing = Meters.of(1 / 120.0);
+    private final LEDPattern m_scrollingPattern = gradient.scrollAtAbsoluteSpeed(MetersPerSecond.of(.6), kLedSpacing);
+
+
     // Enum to represent the different states of the LEDs
     public enum LedState {
-        RAINBOW,
+        SCROLLING_GRADIENT,
         BLUE,
-        RED,
-        ORANGE
+        RED
     }
 
     private LedState m_currentState;
@@ -27,7 +36,7 @@ public class LEDSubsystem extends SubsystemBase {
         m_led.setLength(m_ledBuffer.getLength());
 
         // Set the default state
-        m_currentState = LedState.RAINBOW;
+        m_currentState = LedState.SCROLLING_GRADIENT;
 
         // Start the LED output
         m_led.start();
@@ -35,21 +44,18 @@ public class LEDSubsystem extends SubsystemBase {
 
     /**
      * Cycles to the next LED state.
-     * RAINBOW -> BLUE -> RED -> RAINBOW
+     * SCROLLING_GRADIENT -> BLUE -> RED -> SCROLLING_GRADIENT
      */
     public void cycleState() {
         switch (m_currentState) {
-            case RAINBOW:
+            case SCROLLING_GRADIENT:
                 m_currentState = LedState.BLUE;
                 break;
             case BLUE:
                 m_currentState = LedState.RED;
                 break;
             case RED:
-                m_currentState = LedState.RAINBOW;
-                break;
-            case ORANGE:
-                m_currentState = LedState.ORANGE;
+                m_currentState = LedState.SCROLLING_GRADIENT;
                 break;
         }
     }
@@ -58,17 +64,14 @@ public class LEDSubsystem extends SubsystemBase {
     public void periodic() {
         // This method is called once per scheduler run and applies the current state to the buffer
         switch (m_currentState) {
-            case RAINBOW:
-                setRainbow();
+            case SCROLLING_GRADIENT:
+                setScrollingGradient();
                 break;
             case BLUE:
                 setSolidColor(Color.kBlue);
                 break;
             case RED:
                 setSolidColor(Color.kRed);
-                break;
-            case ORANGE:
-                setSolidColor(Color.kOrange);
                 break;
         }
         // Write the buffer to the LED strip
@@ -86,13 +89,10 @@ public class LEDSubsystem extends SubsystemBase {
     }
 
     /**
-     * Fills the buffer with a rainbow pattern.
+     * Applies the scrolling gradient pattern to the buffer.
      */
-    private void setRainbow() {
-        for (var i = 0; i < m_ledBuffer.getLength(); i++) {
-            final var hue = (int) ((System.currentTimeMillis() / 10) + (i * 180.0 / m_ledBuffer.getLength())) % 180;
-            m_ledBuffer.setHSV(i, hue, 255, 128);
-        }
+    private void setScrollingGradient() {
+        m_scrollingPattern.applyTo(m_ledBuffer);
     }
 }
 
