@@ -21,6 +21,9 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
         algaeIntakeMotor = new SparkMax(AlgaeIntakeConstants.ALGAE_INTAKE_ID, MotorType.kBrushed);
         
         config = new SparkMaxConfig();
+        
+        // This is the modern, recommended way to set motor inversion.
+        config.inverted(true);
         config.idleMode(IdleMode.kBrake);
         
         algaeIntakeMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
@@ -58,5 +61,4 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
         return encoder.getVelocity();
     }
 }
-
 
