@@ -122,7 +122,7 @@ public class VisionSubsystem extends SubsystemBase {
       SmartDashboard.putNumber("Targeted AprilTag ID", bestTarget.get().id);
     } else {
       // If no target is visible, display a default value like -1
-      SmartDashboard.putNumber("Targeted AprilTag ID", -1);
+      SmartDashboard.putNumber("Targeted AprilTag ID", -999);
     }
   }
 }
