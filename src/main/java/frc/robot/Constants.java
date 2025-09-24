@@ -80,15 +80,14 @@ public final class Constants {
   public static final class VisionConstants {
     // TODO: REPLACE WITH YOUR ROBOT'S ACTUAL MEASUREMENTS
     /**
-     * The height of the Limelight lens from the floor in meters.
+     * The height of the LEFT Limelight lens from the floor in meters.
      */
-    public static final double CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
+    public static final double LEFT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
+    public static final double LEFT_CAMERA_PITCH_RADIANS = 0.0;
 
-    /**
-     * The vertical angle of the Limelight lens from horizontal in radians.
-     * A value of 0.0 means the camera is parallel to the floor.
-     */
-    public static final double CAMERA_PITCH_RADIANS = 0.0;
+    public static final double RIGHT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(26); 
+    public static final double RIGHT_CAMERA_PITCH_RADIANS = 0.0;
+
 
     /**
      * A list of AprilTag IDs that are valid targets for scoring CORAL.

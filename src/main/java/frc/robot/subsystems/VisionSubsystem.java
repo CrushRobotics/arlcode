@@ -6,6 +6,7 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.Constants.FieldConstants;
@@ -54,7 +55,7 @@ public class VisionSubsystem extends SubsystemBase {
       if (LimelightHelpers.getTV(name)) {
         int id = (int) LimelightHelpers.getFiducialID(name);
         
-        // *** NEW: Only consider tags that are in our list of valid scoring tags ***
+        // Only consider tags that are in our list of valid scoring tags
         if (VisionConstants.CORAL_SCORING_TAG_IDS.contains(id)) {
           double ta = LimelightHelpers.getTA(name);
           if (ta > maxTa) {
@@ -71,7 +72,7 @@ public class VisionSubsystem extends SubsystemBase {
 
   /**
    * Calculates the horizontal distance from the robot's camera to the best visible AprilTag.
-   * This uses trigonometry based on the camera's known mounting angle and height.
+   * This uses trigonometry based on the specific camera's known mounting angle and height.
    * @return An Optional containing the distance in meters, or empty if no target is visible.
    */
   public Optional<Double> getDistanceToBestTarget() {
@@ -90,23 +91,39 @@ public class VisionSubsystem extends SubsystemBase {
     }
     double targetHeight = tagPose.getZ();
 
+    // Dynamically select the correct camera constants based on which one saw the target
+    double cameraHeight;
+    double cameraPitch;
+
+    if (bestTarget.cameraName.equals("limelight-left")) {
+      cameraHeight = VisionConstants.LEFT_CAMERA_HEIGHT_METERS;
+      cameraPitch = VisionConstants.LEFT_CAMERA_PITCH_RADIANS;
+    } else {
+      // Default to right camera if not left
+      cameraHeight = VisionConstants.RIGHT_CAMERA_HEIGHT_METERS;
+      cameraPitch = VisionConstants.RIGHT_CAMERA_PITCH_RADIANS;
+    }
+
     // The core trigonometric calculation
     // distance = (targetHeight - cameraHeight) / tan(cameraAngle + targetVerticalOffset)
-    double distance = (targetHeight - VisionConstants.CAMERA_HEIGHT_METERS) / 
-                      Math.tan(VisionConstants.CAMERA_PITCH_RADIANS + Units.degreesToRadians(bestTarget.ty));
+    double distance = (targetHeight - cameraHeight) / 
+                      Math.tan(cameraPitch + Units.degreesToRadians(bestTarget.ty));
 
     return Optional.of(distance);
   }
 
   @Override
   public void periodic() {
-    // You could add logging here for debugging, e.g.,
-    // var distance = getDistanceToBestTarget();
-    // if (distance.isPresent()) {
-    //   SmartDashboard.putNumber("Distance to Target", distance.get());
-    // } else {
-    //   SmartDashboard.putNumber("Distance to Target", -1);
-    // }
+    // Get the best visible target
+    Optional<BestTarget> bestTarget = getBestVisibleTarget();
+
+    // Send the ID of the targeted AprilTag to the dashboard for driver feedback
+    if (bestTarget.isPresent()) {
+      SmartDashboard.putNumber("Targeted AprilTag ID", bestTarget.get().id);
+    } else {
+      // If no target is visible, display a default value like -1
+      SmartDashboard.putNumber("Targeted AprilTag ID", -1);
+    }
   }
 }
 
