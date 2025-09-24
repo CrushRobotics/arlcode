@@ -5,13 +5,12 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.VisionConstants;
+import java.util.Optional;
 
 /**
  * The VisionSubsystem is responsible for interfacing with the Limelight cameras
@@ -19,7 +18,7 @@ import frc.robot.Constants.VisionConstants;
  */
 public class VisionSubsystem extends SubsystemBase {
 
-  // TODO: Make sure your Limelights are named "limelight-left" and "limelight-right" in their web interfaces.
+  // Make sure your Limelights are named "limelight-left" and "limelight-right" in their web interfaces.
   private final String[] limelightNames = {"limelight-left", "limelight-right"};
 
   public VisionSubsystem() {}
@@ -42,27 +41,32 @@ public class VisionSubsystem extends SubsystemBase {
   }
 
   /**
-   * Finds the best AprilTag target from all available Limelights.
+   * Finds the best AprilTag target from all available Limelights, but only considers
+   * tags that are valid for scoring on the REEF.
    * The "best" target is defined as the one with the largest screen area (ta).
-   * @return An Optional containing the BestTarget, or empty if no tags are visible.
+   * @return An Optional containing the BestTarget, or empty if no valid scoring tags are visible.
    */
-  public java.util.Optional<BestTarget> getBestVisibleTarget() {
+  public Optional<BestTarget> getBestVisibleTarget() {
     BestTarget bestTarget = null;
     double maxTa = -1.0;
 
     for (String name : limelightNames) {
       if (LimelightHelpers.getTV(name)) {
-        double ta = LimelightHelpers.getTA(name);
-        if (ta > maxTa) {
-          maxTa = ta;
-          int id = (int) LimelightHelpers.getFiducialID(name);
-          double tx = LimelightHelpers.getTX(name);
-          double ty = LimelightHelpers.getTY(name);
-          bestTarget = new BestTarget(id, tx, ty, name);
+        int id = (int) LimelightHelpers.getFiducialID(name);
+        
+        // *** NEW: Only consider tags that are in our list of valid scoring tags ***
+        if (VisionConstants.CORAL_SCORING_TAG_IDS.contains(id)) {
+          double ta = LimelightHelpers.getTA(name);
+          if (ta > maxTa) {
+            maxTa = ta;
+            double tx = LimelightHelpers.getTX(name);
+            double ty = LimelightHelpers.getTY(name);
+            bestTarget = new BestTarget(id, tx, ty, name);
+          }
         }
       }
     }
-    return java.util.Optional.ofNullable(bestTarget);
+    return Optional.ofNullable(bestTarget);
   }
 
   /**
@@ -70,11 +74,11 @@ public class VisionSubsystem extends SubsystemBase {
    * This uses trigonometry based on the camera's known mounting angle and height.
    * @return An Optional containing the distance in meters, or empty if no target is visible.
    */
-  public java.util.Optional<Double> getDistanceToBestTarget() {
-    java.util.Optional<BestTarget> targetOptional = getBestVisibleTarget();
+  public Optional<Double> getDistanceToBestTarget() {
+    Optional<BestTarget> targetOptional = getBestVisibleTarget();
 
     if (targetOptional.isEmpty()) {
-      return java.util.Optional.empty();
+      return Optional.empty();
     }
 
     BestTarget bestTarget = targetOptional.get();
@@ -82,7 +86,7 @@ public class VisionSubsystem extends SubsystemBase {
     // Get the known pose of the AprilTag from our field map
     Pose3d tagPose = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(bestTarget.id);
     if (tagPose == null) {
-      return java.util.Optional.empty(); // Tag ID not in our map
+      return Optional.empty(); // Tag ID not in our map
     }
     double targetHeight = tagPose.getZ();
 
@@ -91,7 +95,7 @@ public class VisionSubsystem extends SubsystemBase {
     double distance = (targetHeight - VisionConstants.CAMERA_HEIGHT_METERS) / 
                       Math.tan(VisionConstants.CAMERA_PITCH_RADIANS + Units.degreesToRadians(bestTarget.ty));
 
-    return java.util.Optional.of(distance);
+    return Optional.of(distance);
   }
 
   @Override

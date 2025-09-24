@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+import java.util.List;
 import java.util.Map;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -85,9 +86,20 @@ public final class Constants {
 
     /**
      * The vertical angle of the Limelight lens from horizontal in radians.
-     * A positive value means the camera is angled upwards.
+     * A value of 0.0 means the camera is parallel to the floor.
      */
-    public static final double CAMERA_PITCH_RADIANS = Units.degreesToRadians(0);
+    public static final double CAMERA_PITCH_RADIANS = 0.0;
+
+    /**
+     * A list of AprilTag IDs that are valid targets for scoring CORAL.
+     * These are the tags located on the REEF structures.
+     */
+    public static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(
+      // Red Alliance REEF Tags
+      6, 7, 8, 9, 10, 11,
+      // Blue Alliance REEF Tags
+      17, 18, 19, 20, 21, 22
+    );
   }
 
   public static final class FieldConstants {
