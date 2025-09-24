@@ -76,6 +76,20 @@ public final class Constants {
     public static final int LED_LENGTH = 142;
   }
 
+  public static final class VisionConstants {
+    // TODO: REPLACE WITH YOUR ROBOT'S ACTUAL MEASUREMENTS
+    /**
+     * The height of the Limelight lens from the floor in meters.
+     */
+    public static final double CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
+
+    /**
+     * The vertical angle of the Limelight lens from horizontal in radians.
+     * A positive value means the camera is angled upwards.
+     */
+    public static final double CAMERA_PITCH_RADIANS = Units.degreesToRadians(0);
+  }
+
   public static final class FieldConstants {
     // Official AprilTag locations from the 2025 Game Manual (User Guide v1.1)
     // The format is (X, Y, Z) in meters and rotation in radians.
