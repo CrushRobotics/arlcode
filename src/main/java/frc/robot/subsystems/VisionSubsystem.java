@@ -4,8 +4,10 @@
 
 package frc.robot.subsystems;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
@@ -15,14 +17,18 @@ import java.util.Optional;
 
 /**
  * The VisionSubsystem is responsible for interfacing with the Limelight cameras
- * and providing high-level data like the distance to a target.
+ * and providing high-level data like the distance to a target and robot pose.
  */
 public class VisionSubsystem extends SubsystemBase {
 
   // Make sure your Limelights are named "limelight-left" and "limelight-right" in their web interfaces.
   private final String[] limelightNames = {"limelight-left", "limelight-right"};
+  private final Field2d m_field = new Field2d();
 
-  public VisionSubsystem() {}
+  public VisionSubsystem() {
+    // Publish the field widget to Shuffleboard/Elastic
+    SmartDashboard.putData("Field", m_field);
+  }
 
   /**
    * Represents the best visible AprilTag target from either Limelight.
@@ -124,6 +130,20 @@ public class VisionSubsystem extends SubsystemBase {
       // If no target is visible, display a default value like -1
       SmartDashboard.putNumber("Targeted AprilTag ID", -999);
     }
+
+    // Update the field map widget with the robot's pose from either Limelight
+    for (String name : limelightNames) {
+        if(LimelightHelpers.getTV(name)) {
+            // Get the Blue Alliance pose from the Limelight
+            Pose2d llPose = LimelightHelpers.getBotPose2d_wpiBlue(name);
+
+            // Update the widget if the pose is valid (not all zeros)
+            if (llPose.getX() != 0 || llPose.getY() != 0) {
+                 m_field.setRobotPose(llPose);
+                 // We got a valid pose, no need to check the other camera
+                 return;
+            }
+        }
+    }
   }
 }
-
