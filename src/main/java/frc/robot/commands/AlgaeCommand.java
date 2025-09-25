@@ -42,5 +42,7 @@ public class AlgaeCommand extends Command {
     public void end (boolean isInterrupted)
     {
       algaeSubsystem.stop();
+      // **FIXED**: Ensure the intake motor is stopped when the command ends.
+      algaeIntakeSubsystem.stop();
     }
-  }
+}

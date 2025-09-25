@@ -30,6 +30,10 @@ public class CANCoralIntakeSubsystem extends SubsystemBase {
     }
 
     @Override
+    public void periodic() {
+        // Publishes encoder data to the SmartDashboard, resolving the "unused field" warning.
+        SmartDashboard.putNumber("Coral Intake Position", encoder.getPosition());
+    }
 
     public void right() {
         coralIntakeMotor.set(CoralIntakeConstants.CORAL_INTAKE_SPEED);

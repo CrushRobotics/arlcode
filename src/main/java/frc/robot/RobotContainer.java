@@ -59,9 +59,8 @@ public class RobotContainer {
   private final SendableChooser<Command> autoChooser = new SendableChooser<>();
   
   // Hardware for the autonomous command
-  private final CANBus kCANBus = new CANBus();
-  public final TalonFX leftLeader = new TalonFX(8, kCANBus);
-  public final TalonFX rightLeader = new TalonFX(7, kCANBus);
+  public final TalonFX leftLeader = new TalonFX(8);
+  public final TalonFX rightLeader = new TalonFX(7);
   
   private final Timer timer = new Timer();
 
@@ -99,23 +98,31 @@ public class RobotContainer {
 
   public Command getAutonomousCommand() {
     return new FunctionalCommand(
+      // initialize() - Runs once when the command starts
       () -> {
         timer.reset();
         timer.start();
       },
+      // execute() - Runs repeatedly until the command ends
       () -> {
+        // Drive forward at a constant speed
         leftLeader.setControl(new DutyCycleOut(0.25));
         rightLeader.setControl(new DutyCycleOut(0.25));
+        // **FIXED**: Run the intake motor simultaneously
+        coralIntakeSubsystem.coralIntakeMotor.set(0.2);
       },
+      // end() - Runs once when the command ends or is interrupted
       (interrupted) -> {
+        // Stop all motors
         rightLeader.setControl(new DutyCycleOut(0));
         leftLeader.setControl(new DutyCycleOut(0));
-        coralIntakeSubsystem.coralIntakeMotor.set(0.2);
+        coralIntakeSubsystem.stop();
         timer.stop();
       },
+      // isFinished() - Returns true when the command should end
       () -> timer.get() > 3,
-      driveSubsystem
+      // **FIXED**: Added coralIntakeSubsystem as a requirement
+      driveSubsystem, coralIntakeSubsystem
     );
   }
 }
-
