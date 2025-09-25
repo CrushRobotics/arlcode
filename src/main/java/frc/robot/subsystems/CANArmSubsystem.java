@@ -1,9 +1,9 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.spark.SparkPIDController;
+import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkMax.ControlType;
+import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -18,23 +18,23 @@ public class CANArmSubsystem extends SubsystemBase {
     private final SparkMax armMotor;
     private final SparkMaxConfig config;
     private final RelativeEncoder encoder;
-    private final SparkPIDController pidController;
+    private final SparkClosedLoopController pidController;
+    private double setpoint;
 
     public CANArmSubsystem() {
         armMotor = new SparkMax(ArmConstants.CORAL_ARM_ID, MotorType.kBrushless);
         
         config = new SparkMaxConfig();
         config.idleMode(IdleMode.kBrake);
+
+        // Configure PID gains from constants
+        config.closedLoop.pid(ArmConstants.kP, ArmConstants.kI, ArmConstants.kD);
+        config.closedLoop.outputRange(ArmConstants.kMIN_OUTPUT, ArmConstants.kMAX_OUTPUT);
+
         armMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         encoder = armMotor.getEncoder();
-        pidController = armMotor.getPIDController();
-
-        // Configure PID gains from constants
-        pidController.setP(ArmConstants.kP);
-        pidController.setI(ArmConstants.kI);
-        pidController.setD(ArmConstants.kD);
-        pidController.setOutputRange(ArmConstants.kMIN_OUTPUT, ArmConstants.kMAX_OUTPUT);
+        pidController = armMotor.getClosedLoopController();
     }
 
     @Override
@@ -47,6 +47,7 @@ public class CANArmSubsystem extends SubsystemBase {
      * @param targetRotations The target position for the arm in rotations.
      */
     public void setPosition(double targetRotations) {
+        this.setpoint = targetRotations;
         pidController.setReference(targetRotations, ControlType.kPosition);
     }
  //TODO:
@@ -63,7 +64,7 @@ public class CANArmSubsystem extends SubsystemBase {
      */
     public boolean atSetpoint() {
         // You may need to adjust the tolerance value in Constants.java
-        return Math.abs(encoder.getPosition() - pidController.getSetpoint()) < ArmConstants.kPOSITION_TOLERANCE;
+        return Math.abs(encoder.getPosition() - this.setpoint) < ArmConstants.kPOSITION_TOLERANCE;
     }
 
     public void right() {

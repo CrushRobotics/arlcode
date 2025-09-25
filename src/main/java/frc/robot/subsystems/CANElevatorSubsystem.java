@@ -1,9 +1,9 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.spark.SparkPIDController;
+import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkMax.ControlType;
+import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
@@ -24,7 +24,8 @@ public class CANElevatorSubsystem extends SubsystemBase {
 
     private final RelativeEncoder leftEncoder;
     private final RelativeEncoder rightEncoder;
-    private final SparkPIDController pidController;
+    private final SparkClosedLoopController pidController;
+    private double setpoint;
 
     public CANElevatorSubsystem() {
         leftElevatorMotor = new SparkMax(ElevatorConstants.ELEVATOR_LEADER_ID, MotorType.kBrushless);
@@ -34,8 +35,11 @@ public class CANElevatorSubsystem extends SubsystemBase {
         rightConfig = new SparkMaxConfig();
         
         leftConfig.idleMode(IdleMode.kBrake);
-        rightConfig.idleMode(IdleMode.kBrake);
+        // Configure PID gains from constants
+        leftConfig.closedLoop.pid(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
+        leftConfig.closedLoop.outputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
 
+        rightConfig.idleMode(IdleMode.kBrake);
         rightConfig.follow(leftElevatorMotor, true);
 
         leftElevatorMotor.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
@@ -47,13 +51,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
         leftEncoder.setPosition(0);
         rightEncoder.setPosition(0);
 
-        pidController = leftElevatorMotor.getPIDController();
-
-        // Configure PID gains from constants
-        pidController.setP(ElevatorConstants.kP);
-        pidController.setI(ElevatorConstants.kI);
-        pidController.setD(ElevatorConstants.kD);
-        pidController.setOutputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
+        pidController = leftElevatorMotor.getClosedLoopController();
     }
 
     @Override 
@@ -67,6 +65,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
      * @param targetRotations The target position for the elevator in rotations.
      */
     public void setPosition(double targetRotations) {
+        this.setpoint = targetRotations;
         pidController.setReference(targetRotations, ControlType.kPosition);
     }
 
@@ -83,7 +82,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
      */
     public boolean atSetpoint() {
         // You may need to adjust the tolerance value in Constants.java
-        return Math.abs(leftEncoder.getPosition() - pidController.getSetpoint()) < ElevatorConstants.kPOSITION_TOLERANCE;
+        return Math.abs(leftEncoder.getPosition() - this.setpoint) < ElevatorConstants.kPOSITION_TOLERANCE;
     }
 
     public void raise() 

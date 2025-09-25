@@ -80,4 +80,3 @@ public class SetScoringPositionCommand extends Command {
     return armSubsystem.atSetpoint() && elevatorSubsystem.atSetpoint();
   }
 }
-
