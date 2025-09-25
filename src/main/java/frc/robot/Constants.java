@@ -29,6 +29,7 @@ public final class Constants {
     public static final double P = 0.1;
     public static final double I = 0.0;
     public static final double D = 0.0;
+    public static final double kP_AUTO_ALIGN = 0.05; // P gain for auto-align rotation
   }
 
   public static class PIDElevatorConstants {
@@ -47,6 +48,23 @@ public final class Constants {
   public static final class ElevatorConstants {
     public static final int ELEVATOR_LEADER_ID = 2;
     public static final int ELEVATOR_FOLLOWER_ID = 4;
+
+    // PID gains for position control (NEEDS TUNING)
+    public static final double kP = 0.1;
+    public static final double kI = 0.0;
+    public static final double kD = 0.0;
+
+    // Min/Max output for PID controller
+    public static final double kMIN_OUTPUT = -0.7;
+    public static final double kMAX_OUTPUT = 0.7;
+
+    // Tolerance for atSetpoint() check
+    public static final double kPOSITION_TOLERANCE = 0.5;
+
+    // Preset positions in motor rotations (NEEDS TUNING/CALIBRATION)
+    // Based on calculations: L2 = 16.85in, L3 = 32.54in
+    public static final double L2_POSITION_ROTATIONS = 16.8; 
+    public static final double L3_POSITION_ROTATIONS = 32.5;
   }
   
   public static final class ClimberConstants {
@@ -64,8 +82,25 @@ public final class Constants {
     public static final int ALGAE_INTAKE_ID = 11;
   }
 
-  public static final class CoralArmConstants {
+  public static final class ArmConstants {
     public static final int CORAL_ARM_ID = 3;
+
+    // PID gains for position control (NEEDS TUNING)
+    public static final double kP = 0.1;
+    public static final double kI = 0.0;
+    public static final double kD = 0.0;
+
+    // Min/Max output for PID controller
+    public static final double kMIN_OUTPUT = -0.5;
+    public static final double kMAX_OUTPUT = 0.5;
+
+    // Tolerance for atSetpoint() check
+    public static final double kPOSITION_TOLERANCE = 0.5;
+    
+    // Preset positions in motor rotations (NEEDS TUNING/CALIBRATION)
+    // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
+    public static final double L2_POSITION_ROTATIONS = 26.7; 
+    public static final double L3_POSITION_ROTATIONS = 27.1;
   }
 
   public static final class CoralIntakeConstants {

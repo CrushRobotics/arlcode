@@ -18,6 +18,7 @@ import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
+import frc.robot.commands.AutoAlignCommand;
 import frc.robot.commands.AutoCommand;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
@@ -25,6 +26,8 @@ import frc.robot.commands.ElevatorCommand;
 import frc.robot.commands.ElevatorCommand.ElevatorDirection;
 import frc.robot.commands.MoveArmCommand;
 import frc.robot.commands.MoveArmCommand.ArmDirection;
+import frc.robot.commands.SetScoringPositionCommand;
+import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 import frc.robot.subsystems.CANAlgaeIntakeSubsystem;
 import frc.robot.subsystems.CANAlgaeSubsystem;
 import frc.robot.subsystems.CANArmSubsystem;
@@ -33,6 +36,7 @@ import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 import frc.robot.subsystems.ClimberSubsystem;
 import frc.robot.subsystems.LEDSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 
 public class RobotContainer {
   // The robot's subsystems
@@ -44,6 +48,7 @@ public class RobotContainer {
   private final CANCoralIntakeSubsystem coralIntakeSubsystem = new CANCoralIntakeSubsystem();
   private final ClimberSubsystem climberSubsystem = new ClimberSubsystem();
   private final LEDSubsystem ledSubsystem = new LEDSubsystem();
+  private final VisionSubsystem visionSubsystem = new VisionSubsystem();
 
   // The driver's controller
   private final CommandXboxController driverController = new CommandXboxController(
@@ -74,6 +79,11 @@ public class RobotContainer {
     operatorController.leftBumper().whileTrue(new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Up));
     operatorController.rightBumper().whileTrue(new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Down));
 
+    // New Bindings for Scoring Presets using DPad
+    operatorController.pov(0).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3)); // DPad Up for L3
+    operatorController.pov(180).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L2)); // DPad Down for L2
+
+
     // Driver Controller Bindings
     driverController.rightTrigger().onTrue(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Down, algaeIntakeSubsystem));
     driverController.rightTrigger().onFalse(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Up, algaeIntakeSubsystem));
@@ -82,6 +92,9 @@ public class RobotContainer {
     
     // Bind the X button to an inline InstantCommand that cycles the LED state.
     driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
+    
+    // Bind the A button to the AutoAlignCommand
+    driverController.a().whileTrue(new AutoAlignCommand(driveSubsystem, visionSubsystem));
   }
 
   public Command getAutonomousCommand() {
@@ -105,3 +118,4 @@ public class RobotContainer {
     );
   }
 }
+

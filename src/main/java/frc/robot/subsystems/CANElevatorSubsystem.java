@@ -1,7 +1,9 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.RelativeEncoder;
+import com.revrobotics.spark.SparkPIDController;
 import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkMax.ControlType;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
@@ -22,23 +24,20 @@ public class CANElevatorSubsystem extends SubsystemBase {
 
     private final RelativeEncoder leftEncoder;
     private final RelativeEncoder rightEncoder;
+    private final SparkPIDController pidController;
 
     public CANElevatorSubsystem() {
         leftElevatorMotor = new SparkMax(ElevatorConstants.ELEVATOR_LEADER_ID, MotorType.kBrushless);
         rightElevatorMotor = new SparkMax(ElevatorConstants.ELEVATOR_FOLLOWER_ID, MotorType.kBrushless);
 
-        // Instead of calling restoreFactoryDefaults directly, we create fresh configs
         leftConfig = new SparkMaxConfig();
         rightConfig = new SparkMaxConfig();
         
-        // Set idle mode on the configuration object
         leftConfig.idleMode(IdleMode.kBrake);
         rightConfig.idleMode(IdleMode.kBrake);
 
-        // Set the follower on the configuration object
         rightConfig.follow(leftElevatorMotor, true);
 
-        // Apply the configurations to the motor controllers
         leftElevatorMotor.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
         rightElevatorMotor.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
         
@@ -47,12 +46,44 @@ public class CANElevatorSubsystem extends SubsystemBase {
         
         leftEncoder.setPosition(0);
         rightEncoder.setPosition(0);
+
+        pidController = leftElevatorMotor.getPIDController();
+
+        // Configure PID gains from constants
+        pidController.setP(ElevatorConstants.kP);
+        pidController.setI(ElevatorConstants.kI);
+        pidController.setD(ElevatorConstants.kD);
+        pidController.setOutputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
     }
 
     @Override 
     public void periodic()
     {
         SmartDashboard.putNumber("Elevator Position", leftEncoder.getPosition());
+    }
+
+    /**
+     * Commands the elevator to move to a specific position in rotations.
+     * @param targetRotations The target position for the elevator in rotations.
+     */
+    public void setPosition(double targetRotations) {
+        pidController.setReference(targetRotations, ControlType.kPosition);
+    }
+
+    /**
+     * @return The current position of the elevator encoder in rotations.
+     */
+    public double getPosition() {
+        return leftEncoder.getPosition();
+    }
+
+    /**
+     * Checks if the elevator is at its target setpoint within a defined tolerance.
+     * @return True if the elevator is at the setpoint, false otherwise.
+     */
+    public boolean atSetpoint() {
+        // You may need to adjust the tolerance value in Constants.java
+        return Math.abs(leftEncoder.getPosition() - pidController.getSetpoint()) < ElevatorConstants.kPOSITION_TOLERANCE;
     }
 
     public void raise() 
