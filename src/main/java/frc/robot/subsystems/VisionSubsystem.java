@@ -61,7 +61,7 @@ public class VisionSubsystem extends SubsystemBase {
       if (LimelightHelpers.getTV(name)) {
         int id = (int) LimelightHelpers.getFiducialID(name);
         
-        // Only consider tags that are in our list of valid scoring tags
+        // This is the crucial check: Is the detected tag in our list of valid scoring tags?
         if (VisionConstants.CORAL_SCORING_TAG_IDS.contains(id)) {
           double ta = LimelightHelpers.getTA(name);
           if (ta > maxTa) {
@@ -120,7 +120,17 @@ public class VisionSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
-    // Get the best visible target
+    // --- DEBUGGING WIDGETS ---
+    // This will show the raw ID of ANY AprilTag a Limelight sees, even if it's not a valid scoring tag.
+    for (String name : limelightNames) {
+        if(LimelightHelpers.getTV(name)) {
+            SmartDashboard.putNumber("RAW Tag ID (" + name + ")", LimelightHelpers.getFiducialID(name));
+        } else {
+            SmartDashboard.putNumber("RAW Tag ID (" + name + ")", -1);
+        }
+    }
+
+    // --- MAIN TARGETING LOGIC ---
     Optional<BestTarget> bestTarget = getBestVisibleTarget();
 
     // Send the ID of the targeted AprilTag to the dashboard for driver feedback
@@ -147,3 +157,4 @@ public class VisionSubsystem extends SubsystemBase {
     }
   }
 }
+
