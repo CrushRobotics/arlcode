@@ -16,10 +16,11 @@ import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import edu.wpi.first.wpilibj.XboxController;
+import frc.robot.Constants.OperatorConstants;
 
 public class Robot extends TimedRobot {
   
-  double deadzone = 0.2;	//variable for amount of deadzone
+
   
   private final CANBus kCANBus = new CANBus();
 
@@ -101,6 +102,7 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     double fwd = joystick.getLeftY(); 
     double rot = -(joystick.getRightX());
+    double deadzone = OperatorConstants.CONTROLLER_DEADZONE;
 
     if (fwd >= -deadzone && fwd <= deadzone) {
       fwd = 0;

@@ -37,11 +37,11 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
     }
 
     public void right() {
-        algaeIntakeMotor.set(0.6);
+        algaeIntakeMotor.set(AlgaeIntakeConstants.ALGAE_INTAKE_SPEED);
     }
 
     public void left() {
-        algaeIntakeMotor.set(-0.6);
+        algaeIntakeMotor.set(-AlgaeIntakeConstants.ALGAE_INTAKE_SPEED);
     }
 
     public void stop() {
@@ -61,4 +61,3 @@ public class CANAlgaeIntakeSubsystem extends SubsystemBase {
         return encoder.getVelocity();
     }
 }
-

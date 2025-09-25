@@ -50,7 +50,7 @@ public class CANArmSubsystem extends SubsystemBase {
         this.setpoint = targetRotations;
         pidController.setReference(targetRotations, ControlType.kPosition);
     }
- //TODO:
+
     /**
      * @return The current position of the arm encoder in rotations.
      */

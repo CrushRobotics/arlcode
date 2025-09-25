@@ -11,6 +11,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.CoralIntakeConstants;
 
 public class CANCoralIntakeSubsystem extends SubsystemBase {
     public final SparkMax coralIntakeMotor;
@@ -18,7 +19,7 @@ public class CANCoralIntakeSubsystem extends SubsystemBase {
     private final RelativeEncoder encoder;
 
     public CANCoralIntakeSubsystem() {
-        coralIntakeMotor = new SparkMax(16, MotorType.kBrushless); // placeholder ID
+        coralIntakeMotor = new SparkMax(CoralIntakeConstants.CORAL_INTAKE_ID, MotorType.kBrushless);
         
         config = new SparkMaxConfig();
 
@@ -34,14 +35,15 @@ public class CANCoralIntakeSubsystem extends SubsystemBase {
     }
 
     public void right() {
-        coralIntakeMotor.set(0.5);
+        coralIntakeMotor.set(CoralIntakeConstants.CORAL_INTAKE_SPEED);
     }
     public void moveToShootPosition(){
+        // TODO: Implement shooting position logic
         //setTarget(frc.robot.Constants.ArmConstants.SHOOTING_POSITION);
     }
 
     public void left() {
-        coralIntakeMotor.set(-0.5);
+        coralIntakeMotor.set(-CoralIntakeConstants.CORAL_INTAKE_SPEED);
     }
     public void stop(){
         coralIntakeMotor.setVoltage(0);

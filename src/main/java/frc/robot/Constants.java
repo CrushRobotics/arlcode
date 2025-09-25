@@ -23,19 +23,29 @@ public final class Constants {
   public static class OperatorConstants {
     public static final int DRIVER_CONTROLLER_PORT = 0;
     public static final int OPERATOR_CONTROLLER_PORT = 1;
+    public static final double CONTROLLER_DEADZONE = 0.2;
   }
 
   public static class PIDConstants {
     public static final double P = 0.1;
     public static final double I = 0.0;
     public static final double D = 0.0;
+    
+    // TODO: Tune Auto-Align PID constant
     public static final double kP_AUTO_ALIGN = 0.05; // P gain for auto-align rotation
   }
 
   public static class PIDElevatorConstants {
+    // TODO: Tune Elevator PID constants
     public static final double P = 0.1;
     public static final double I = 0.0;
     public static final double D = 0.0;
+  }
+  public static final class ClimberConstants {
+    public static final double MAX_BOUND = 100.0;
+    public static final double MIN_BOUND = -10.0;
+    public static final int LEFT_CLIMBER_ID = 27;
+    public static final int RIGHT_CLIMBER_ID = 24;
   }
 
     public static final class DriveConstants {
@@ -49,62 +59,68 @@ public final class Constants {
     public static final int ELEVATOR_LEADER_ID = 2;
     public static final int ELEVATOR_FOLLOWER_ID = 4;
 
-    // PID gains for position control (NEEDS TUNING)
+    // TODO: Tune Elevator PID gains for position control
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
 
-    // Min/Max output for PID controller
+    // TODO: Tune Min/Max output for Elevator PID controller
     public static final double kMIN_OUTPUT = -0.7;
     public static final double kMAX_OUTPUT = 0.7;
 
-    // Tolerance for atSetpoint() check
+    // TODO: Tune tolerance for Elevator atSetpoint() check
     public static final double kPOSITION_TOLERANCE = 0.5;
 
-    // Preset positions in motor rotations (NEEDS TUNING/CALIBRATION)
+    // TODO: Calibrate Elevator preset positions in motor rotations
     // Based on calculations: L2 = 16.85in, L3 = 32.54in
     public static final double L2_POSITION_ROTATIONS = 16.8; 
     public static final double L3_POSITION_ROTATIONS = 32.5;
+
+    
+    public static final double MANUAL_RAISE_SPEED = 0.4;
+    public static final double MANUAL_LOWER_SPEED = -0.3;
   }
   
-  public static final class ClimberConstants {
-    public static final double MAX_BOUND = 100.0;
-    public static final double MIN_BOUND = -10.0;
-    public static final int LEFT_CLIMBER_ID = 27;
-    public static final int RIGHT_CLIMBER_ID = 24;
-  }
+
 
   public static final class AlgaeArmConstants {
     public static final int ALGAE_ARM_ID = 21;
+    public static final double ALGAE_ARM_UP_POSITION = -3.3;
+    public static final double ALGAE_ARM_DOWN_POSITION = -7.4;
   }
 
   public static final class AlgaeIntakeConstants {
     public static final int ALGAE_INTAKE_ID = 11;
+    public static final double ALGAE_INTAKE_SPEED = 0.5;
   }
 
   public static final class ArmConstants {
     public static final int CORAL_ARM_ID = 3;
 
-    // PID gains for position control (NEEDS TUNING)
+    // TODO: Tune Arm PID gains for position control
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
 
-    // Min/Max output for PID controller
+    // TODO: Tune Min/Max output for Arm PID controller
     public static final double kMIN_OUTPUT = -0.5;
     public static final double kMAX_OUTPUT = 0.5;
 
-    // Tolerance for atSetpoint() check
+    // TODO: Tune tolerance for Arm atSetpoint() check
     public static final double kPOSITION_TOLERANCE = 0.5;
     
-    // Preset positions in motor rotations (NEEDS TUNING/CALIBRATION)
+    // TODO: Calibrate Arm preset positions in motor rotations
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
     public static final double L2_POSITION_ROTATIONS = 26.7; 
     public static final double L3_POSITION_ROTATIONS = 27.1;
+
+    // TODO: Tune manual arm speed
+    public static final double MANUAL_ARM_SPEED = 0.4;
   }
 
   public static final class CoralIntakeConstants {
     public static final int CORAL_INTAKE_ID = 16;
+    public static final double CORAL_INTAKE_SPEED = 0.5;
   }
   
   public static final class LedConstants {
@@ -134,6 +150,13 @@ public final class Constants {
       // Blue Alliance REEF Tags
       17, 18, 19, 20, 21, 22
     );
+  }
+
+  public static final class AutoConstants {
+    // TODO: Tune autonomous command values
+    public static final double AUTO_DRIVE_SPEED = 0.25;
+    public static final double AUTO_DRIVE_SECONDS = 3.0;
+    public static final double AUTO_INTAKE_SPEED = 0.2;
   }
 
   public static final class FieldConstants {
@@ -169,4 +192,3 @@ public final class Constants {
     );
   }
 }
-
