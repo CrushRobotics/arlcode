@@ -30,9 +30,6 @@ public class CANCoralIntakeSubsystem extends SubsystemBase {
     }
 
     @Override
-    public void periodic() {
-        SmartDashboard.putNumber("Arm Position", encoder.getPosition());
-    }
 
     public void right() {
         coralIntakeMotor.set(CoralIntakeConstants.CORAL_INTAKE_SPEED);
