@@ -146,9 +146,9 @@ public final class Constants {
      */
     public static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(
       // Red Alliance REEF Tags
-      6, 7, 8, 9, 10, 11,
+      9, 10, 11,
       // Blue Alliance REEF Tags
-      17, 18, 19, 20, 21, 22
+      13, 14, 15
     );
   }
 
@@ -160,35 +160,32 @@ public final class Constants {
   }
 
   public static final class FieldConstants {
-    // Official AprilTag locations from the 2025 Game Manual (User Guide v1.1)
-    // The format is (X, Y, Z) in meters and rotation in radians.
+    // Official AprilTag locations from the 2025 Game Manual (v1.1, 9/19/2024)
     // All measurements are relative to the Blue Alliance origin.
     public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
-        // --- RED ALLIANCE TAGS (IDs 1-11) ---
-        Map.entry(1, new Pose3d(new Translation3d(Units.inchesToMeters(610.77), Units.inchesToMeters(42.19), Units.inchesToMeters(18.22)), new Rotation3d(0, 0, Units.degreesToRadians(120)))),
-        Map.entry(2, new Pose3d(new Translation3d(Units.inchesToMeters(637.96), Units.inchesToMeters(118.19), Units.inchesToMeters(27.38)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(3, new Pose3d(new Translation3d(Units.inchesToMeters(637.96), Units.inchesToMeters(196.19), Units.inchesToMeters(27.38)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(4, new Pose3d(new Translation3d(Units.inchesToMeters(610.77), Units.inchesToMeters(272.19), Units.inchesToMeters(18.22)), new Rotation3d(0, 0, Units.degreesToRadians(240)))),
-        Map.entry(5, new Pose3d(new Translation3d(Units.inchesToMeters(39.23), Units.inchesToMeters(42.19), Units.inchesToMeters(18.22)), new Rotation3d(0, 0, Units.degreesToRadians(60)))),
-        Map.entry(6, new Pose3d(new Translation3d(Units.inchesToMeters(12.04), Units.inchesToMeters(118.19), Units.inchesToMeters(27.38)), new Rotation3d(0, 0, 0))),
-        Map.entry(7, new Pose3d(new Translation3d(Units.inchesToMeters(12.04), Units.inchesToMeters(196.19), Units.inchesToMeters(27.38)), new Rotation3d(0, 0, 0))),
-        Map.entry(8, new Pose3d(new Translation3d(Units.inchesToMeters(39.23), Units.inchesToMeters(272.19), Units.inchesToMeters(18.22)), new Rotation3d(0, 0, Units.degreesToRadians(300)))),
-        Map.entry(9, new Pose3d(new Translation3d(Units.inchesToMeters(535.06), Units.inchesToMeters(295.25), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, 0))),
-        Map.entry(10, new Pose3d(new Translation3d(Units.inchesToMeters(578.06), Units.inchesToMeters(216.75), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, 0))),
-        Map.entry(11, new Pose3d(new Translation3d(Units.inchesToMeters(535.06), Units.inchesToMeters(138.25), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, 0))),
-
-        // --- BLUE ALLIANCE TAGS (IDs 12-22) ---
-        Map.entry(12, new Pose3d(new Translation3d(Units.inchesToMeters(636.5), Units.inchesToMeters(138.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(60)))),
-        Map.entry(13, new Pose3d(new Translation3d(Units.inchesToMeters(114.94), Units.inchesToMeters(295.25), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(14, new Pose3d(new Translation3d(Units.inchesToMeters(71.94), Units.inchesToMeters(216.75), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(15, new Pose3d(new Translation3d(Units.inchesToMeters(114.94), Units.inchesToMeters(138.25), Units.inchesToMeters(18.25)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(16, new Pose3d(new Translation3d(Units.inchesToMeters(13.5), Units.inchesToMeters(138.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(120)))),
-        Map.entry(17, new Pose3d(new Translation3d(Units.inchesToMeters(405.25), Units.inchesToMeters(157.25), Units.inchesToMeters(34.38)), new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-        Map.entry(18, new Pose3d(new Translation3d(Units.inchesToMeters(327.00), Units.inchesToMeters(304.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(90)))),
-        Map.entry(19, new Pose3d(new Translation3d(Units.inchesToMeters(327.00), Units.inchesToMeters(10.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(270)))),
-        Map.entry(20, new Pose3d(new Translation3d(Units.inchesToMeters(244.75), Units.inchesToMeters(157.25), Units.inchesToMeters(34.38)), new Rotation3d(0, 0, 0))),
-        Map.entry(21, new Pose3d(new Translation3d(Units.inchesToMeters(323.00), Units.inchesToMeters(304.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(90)))),
-        Map.entry(22, new Pose3d(new Translation3d(Units.inchesToMeters(323.00), Units.inchesToMeters(10.25), Units.inchesToMeters(24.0)), new Rotation3d(0, 0, Units.degreesToRadians(270))))
+        Map.entry(1, new Pose3d(15.5138, 1.0716, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(120)))),
+        Map.entry(2, new Pose3d(16.204, 3.002, 0.6955, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(3, new Pose3d(16.204, 4.983, 0.6955, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(4, new Pose3d(15.5138, 6.9144, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(240)))),
+        Map.entry(5, new Pose3d(0.9964, 1.0716, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(60)))),
+        Map.entry(6, new Pose3d(0.306, 3.002, 0.6955, new Rotation3d(0, 0, 0))),
+        Map.entry(7, new Pose3d(0.306, 4.983, 0.6955, new Rotation3d(0, 0, 0))),
+        Map.entry(8, new Pose3d(0.9964, 6.9144, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(300)))),
+        Map.entry(9, new Pose3d(13.5905, 7.4994, 0.4636, new Rotation3d(0, 0, 0))),
+        Map.entry(10, new Pose3d(14.6827, 5.5055, 0.4636, new Rotation3d(0, 0, 0))),
+        Map.entry(11, new Pose3d(13.5905, 3.5116, 0.4636, new Rotation3d(0, 0, 0))),
+        Map.entry(12, new Pose3d(16.1671, 3.5116, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(60)))),
+        Map.entry(13, new Pose3d(2.9195, 7.4994, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(14, new Pose3d(1.8273, 5.5055, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(15, new Pose3d(2.9195, 3.5116, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(16, new Pose3d(0.3429, 3.5116, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(120)))),
+        Map.entry(17, new Pose3d(10.2934, 3.9942, 0.8733, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+        Map.entry(18, new Pose3d(8.3058, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90)))),
+        Map.entry(19, new Pose3d(8.3058, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270)))),
+        Map.entry(20, new Pose3d(6.2167, 3.9942, 0.8733, new Rotation3d(0, 0, 0))),
+        Map.entry(21, new Pose3d(8.2042, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90)))),
+        Map.entry(22, new Pose3d(8.2042, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270))))
     );
   }
 }
+
