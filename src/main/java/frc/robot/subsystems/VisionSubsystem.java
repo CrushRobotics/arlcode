@@ -7,6 +7,7 @@ package frc.robot.subsystems;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -141,11 +142,20 @@ public class VisionSubsystem extends SubsystemBase {
       SmartDashboard.putNumber("Targeted AprilTag ID", -999);
     }
 
+    // Get the current alliance color from the Driver Station
+    Optional<DriverStation.Alliance> alliance = DriverStation.getAlliance();
+    boolean isRed = alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
+
     // Update the field map widget with the robot's pose from either Limelight
     for (String name : limelightNames) {
         if(LimelightHelpers.getTV(name)) {
-            // Get the Blue Alliance pose from the Limelight
-            Pose2d llPose = LimelightHelpers.getBotPose2d_wpiBlue(name);
+            // Get the correct pose based on the alliance color
+            Pose2d llPose;
+            if (isRed) {
+                llPose = LimelightHelpers.getBotPose2d_wpiRed(name);
+            } else {
+                llPose = LimelightHelpers.getBotPose2d_wpiBlue(name);
+            }
 
             // Update the widget if the pose is valid (not all zeros)
             if (llPose.getX() != 0 || llPose.getY() != 0) {
@@ -157,4 +167,3 @@ public class VisionSubsystem extends SubsystemBase {
     }
   }
 }
-
