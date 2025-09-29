@@ -3,10 +3,10 @@ package frc.robot.subsystems;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkPIDController;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.ClosedLoopSlot; // Import the ClosedLoopSlot enum from its new location
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
@@ -19,7 +19,7 @@ public class CANArmSubsystem extends SubsystemBase {
     private final SparkMax armMotor;
     private final SparkMaxConfig config;
     private final RelativeEncoder encoder;
-    private final SparkPIDController pidController;
+    private final SparkClosedLoopController pidController;
     private double setpoint;
 
     public CANArmSubsystem() {
@@ -28,17 +28,17 @@ public class CANArmSubsystem extends SubsystemBase {
         config = new SparkMaxConfig();
         config.idleMode(IdleMode.kBrake);
         
+        // Configure PID gains and add the Feedforward term from constants
+        // This is the new way to configure PID constants for 2025
+        config.closedLoop.pid(ArmConstants.kP, ArmConstants.kI, ArmConstants.kD);
+        // The .ff() method is removed; feedforward is now applied in setReference()
+        config.closedLoop.outputRange(ArmConstants.kMIN_OUTPUT, ArmConstants.kMAX_OUTPUT);
+
         armMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         
-        pidController = armMotor.getPIDController();
+        // The method to get the controller has also been renamed
+        pidController = armMotor.getClosedLoopController();
         encoder = armMotor.getEncoder();
-
-        // Configure PID gains and add the Feedforward term from constants
-        pidController.setP(ArmConstants.kP);
-        pidController.setI(ArmConstants.kI);
-        pidController.setD(ArmConstants.kD);
-        pidController.setFF(ArmConstants.kF); // Feedforward gain
-        pidController.setOutputRange(ArmConstants.kMIN_OUTPUT, ArmConstants.kMAX_OUTPUT);
     }
 
     @Override
@@ -54,7 +54,9 @@ public class CANArmSubsystem extends SubsystemBase {
      */
     public void setPosition(double targetRotations) {
         this.setpoint = targetRotations;
-        pidController.setReference(targetRotations, ControlType.kPosition);
+        // The arbitrary feedforward term (kF) is now passed into setReference.
+        // The '0' is replaced with the correct enum type 'ClosedLoopSlot.kSlot0'.
+        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kF);
     }
 
     /**
@@ -63,7 +65,7 @@ public class CANArmSubsystem extends SubsystemBase {
      */
     public void holdPosition() {
         setpoint = encoder.getPosition();
-        pidController.setReference(setpoint, ControlType.kPosition);
+        pidController.setReference(setpoint, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kF);
     }
 
     /**
@@ -94,3 +96,4 @@ public class CANArmSubsystem extends SubsystemBase {
         armMotor.setVoltage(0);
     }
 }
+
