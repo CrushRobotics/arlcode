@@ -111,8 +111,8 @@ public final class Constants {
     
     // TODO: Calibrate Arm preset positions in motor rotations
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
-    public static final double L2_POSITION_ROTATIONS = 26.7; 
-    public static final double L3_POSITION_ROTATIONS = 27.1;
+    public static final double L2_POSITION_ROTATIONS = -22.44; 
+    public static final double L3_POSITION_ROTATIONS = -22.2;
 
     // TODO: Tune manual arm speed
     public static final double MANUAL_ARM_SPEED = 0.4;
