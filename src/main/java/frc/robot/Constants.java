@@ -102,6 +102,7 @@ public final class Constants {
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
+    public static final double kF = 0.1;
 
     // TODO: Tune Min/Max output for Arm PID controller
     public static final double kMIN_OUTPUT = -0.5;
@@ -111,14 +112,9 @@ public final class Constants {
     public static final double kPOSITION_TOLERANCE = 0.5;
     
     // TODO: Calibrate Arm preset positions in motor rotations
-<<<<<<< HEAD
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
-    public static final double L2_POSITION_ROTATIONS = -22.4; 
-    public static final double L3_POSITION_ROTATIONS = -22.4;
-=======
-    public static final double L2_POSITION_ROTATIONS = -22.2; 
-    public static final double L3_POSITION_ROTATIONS = -22.2;
->>>>>>> 152b9c16f36a7a132d9dcb41a805c2930d5ed5ce
+    public static final double L2_POSITION_ROTATIONS = -13.4; 
+    public static final double L3_POSITION_ROTATIONS = -13.4;
 
     // TODO: Tune manual arm speed
     public static final double MANUAL_ARM_SPEED = 0.5;
