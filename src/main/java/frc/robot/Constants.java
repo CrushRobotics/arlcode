@@ -64,6 +64,7 @@ public final class Constants {
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
+    public static final double kF = 0.1;
 
     // TODO: Tune Min/Max output for Elevator PID controller
     public static final double kMIN_OUTPUT = -0.7;
