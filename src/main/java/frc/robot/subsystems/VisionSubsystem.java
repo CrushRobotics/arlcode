@@ -6,6 +6,10 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -119,10 +123,74 @@ public class VisionSubsystem extends SubsystemBase {
     return Optional.of(distance);
   }
 
+  /**
+   * Calculates the robot's pose on the field using the Limelight's raw camera-to-target transform.
+   * @param limelightName The name of the Limelight to use.
+   * @return An Optional containing the robot's calculated Pose2d, or empty if no target is visible.
+   */
+  private Optional<Pose2d> getPoseFromCamtran(String limelightName) {
+    if (!LimelightHelpers.getTV(limelightName)) {
+        return Optional.empty();
+    }
+
+    int tagId = (int) LimelightHelpers.getFiducialID(limelightName);
+    Pose3d tagPoseOnField = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(tagId);
+
+    if (tagPoseOnField == null) {
+        return Optional.empty(); // We see a tag, but it's not on our map
+    }
+
+    // Get the camera-to-target transform from the Limelight
+    double[] camtran = LimelightHelpers.getLimelightNTDoubleArray(limelightName, "camtran");
+    if (camtran.length < 6) {
+        return Optional.empty();
+    }
+
+    // Limelight's camtran is (x, y, z, pitch, yaw, roll) in target space
+    // We need to convert this to a standard Transform3d
+    // Limelight's coordinate system: +x right, +y down, +z forward
+    // WPILib's robot-centric system: +x forward, +y left, +z up
+    Transform3d cameraToTarget = new Transform3d(
+        new Translation3d(camtran[2], -camtran[0], -camtran[1]), // Z -> X, -X -> Y, -Y -> Z
+        new Rotation3d(
+            Units.degreesToRadians(-camtran[4]), // -Yaw
+            Units.degreesToRadians(-camtran[3]), // -Pitch
+            Units.degreesToRadians(camtran[5])   // Roll
+        )
+    );
+
+    // Get the robot-to-camera transform from Constants
+    Transform3d robotToCamera;
+    if (limelightName.equals("limelight-left")) {
+      robotToCamera = VisionConstants.LEFT_ROBOT_TO_CAMERA;
+    } else {
+      robotToCamera = VisionConstants.RIGHT_ROBOT_TO_CAMERA;
+    }
+
+    // Calculate pose
+    Pose3d robotPoseOnField = tagPoseOnField
+        .transformBy(cameraToTarget.inverse())
+        .transformBy(robotToCamera.inverse());
+
+    // Flip pose if we are on the Red Alliance
+    Optional<DriverStation.Alliance> alliance = DriverStation.getAlliance();
+    boolean isRed = alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
+    if (isRed) {
+        return Optional.of(
+            new Pose2d(
+                FieldConstants.FIELD_LENGTH_METERS - robotPoseOnField.getX(),
+                FieldConstants.FIELD_WIDTH_METERS - robotPoseOnField.getY(),
+                robotPoseOnField.getRotation().toRotation2d().plus(Rotation2d.fromDegrees(180))
+            )
+        );
+    }
+    
+    return Optional.of(robotPoseOnField.toPose2d());
+  }
+
   @Override
   public void periodic() {
     // --- DEBUGGING WIDGETS ---
-    // This will show the raw ID of ANY AprilTag a Limelight sees, even if it's not a valid scoring tag.
     for (String name : limelightNames) {
         if(LimelightHelpers.getTV(name)) {
             SmartDashboard.putNumber("RAW Tag ID (" + name + ")", LimelightHelpers.getFiducialID(name));
@@ -134,36 +202,23 @@ public class VisionSubsystem extends SubsystemBase {
     // --- MAIN TARGETING LOGIC ---
     Optional<BestTarget> bestTarget = getBestVisibleTarget();
 
-    // Send the ID of the targeted AprilTag to the dashboard for driver feedback
     if (bestTarget.isPresent()) {
       SmartDashboard.putNumber("Targeted AprilTag ID", bestTarget.get().id);
     } else {
-      // If no target is visible, display a default value like -1
       SmartDashboard.putNumber("Targeted AprilTag ID", -999);
     }
 
-    // Get the current alliance color from the Driver Station
-    Optional<DriverStation.Alliance> alliance = DriverStation.getAlliance();
-    boolean isRed = alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
-
-    // Update the field map widget with the robot's pose from either Limelight
+    // --- POSE ESTIMATION AND MAP WIDGET ---
     for (String name : limelightNames) {
-        if(LimelightHelpers.getTV(name)) {
-            // Get the correct pose based on the alliance color
-            Pose2d llPose;
-            if (isRed) {
-                llPose = LimelightHelpers.getBotPose2d_wpiRed(name);
-            } else {
-                llPose = LimelightHelpers.getBotPose2d_wpiBlue(name);
-            }
-
-            // Update the widget if the pose is valid (not all zeros)
-            if (llPose.getX() != 0 || llPose.getY() != 0) {
-                 m_field.setRobotPose(llPose);
-                 // We got a valid pose, no need to check the other camera
-                 return;
-            }
+        Optional<Pose2d> robotPose = getPoseFromCamtran(name);
+        if (robotPose.isPresent()) {
+            m_field.setRobotPose(robotPose.get());
+            // We got a valid pose, no need to check the other camera
+            return;
         }
     }
+    // If no tags are visible, clear the robot pose from the map
+    m_field.setRobotPose(new Pose2d(-1, -1, new Rotation2d()));
   }
 }
+

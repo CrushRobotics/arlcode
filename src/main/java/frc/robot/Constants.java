@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 
@@ -111,8 +112,8 @@ public final class Constants {
     
     // TODO: Calibrate Arm preset positions in motor rotations
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
-    public static final double L2_POSITION_ROTATIONS = -22.44; 
-    public static final double L3_POSITION_ROTATIONS = -22.2;
+    public static final double L2_POSITION_ROTATIONS = 26.7; 
+    public static final double L3_POSITION_ROTATIONS = 27.1;
 
     // TODO: Tune manual arm speed
     public static final double MANUAL_ARM_SPEED = 0.4;
@@ -129,9 +130,29 @@ public final class Constants {
   }
 
   public static final class VisionConstants {
-    // TODO: REPLACE WITH YOUR ROBOT'S ACTUAL MEASUREMENTS
+    
+    /**
+     * The physical transform from the center of the robot to the camera lens.
+     * You MUST update these values with your robot's measurements.
+     * Units are in meters and radians.
+     * * +X is forward, +Y is left, +Z is up
+     * Rotation is applied in Z, Y, X order (Yaw, Pitch, Roll)
+     */
+    public static final Transform3d LEFT_ROBOT_TO_CAMERA = 
+        new Transform3d(
+            new Translation3d(0.0, 0.0, 0.0), // CHANGE THESE: (X, Y, Z) in meters
+            new Rotation3d(0.0, 0.0, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
+        );
+
+    public static final Transform3d RIGHT_ROBOT_TO_CAMERA = 
+        new Transform3d(
+            new Translation3d(0.0, 0.0, 0.0), // CHANGE THESE: (X, Y, Z) in meters
+            new Rotation3d(0.0, 0.0, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
+        );
+
     /**
      * The height of the LEFT Limelight lens from the floor in meters.
+     * NOTE: This is now part of the Transform3d above and is kept here for the distance calculation.
      */
     public static final double LEFT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
     public static final double LEFT_CAMERA_PITCH_RADIANS = 0.0;
@@ -160,6 +181,9 @@ public final class Constants {
   }
 
   public static final class FieldConstants {
+    public static final double FIELD_LENGTH_METERS = 16.51;
+    public static final double FIELD_WIDTH_METERS = 8.2296;
+
     // Official AprilTag locations from the 2025 Game Manual (v1.1, 9/19/2024)
     // All measurements are relative to the Blue Alliance origin.
     public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
