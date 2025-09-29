@@ -20,6 +20,8 @@ import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
 import frc.robot.commands.AutoAlignCommand;
 import frc.robot.commands.AutoCommand;
+import frc.robot.commands.ClimberClimbCommand;
+import frc.robot.commands.ClimberLowerCommand;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
 import frc.robot.commands.ElevatorCommand;
@@ -94,6 +96,10 @@ public class RobotContainer {
     
     // Bind the A button to the AutoAlignCommand
     driverController.a().whileTrue(new AutoAlignCommand(driveSubsystem, visionSubsystem));
+
+    // Bind the Y and A buttons for the climber
+    driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
+    driverController.a().whileTrue(new ClimberLowerCommand(climberSubsystem));
   }
 
   public Command getAutonomousCommand() {
