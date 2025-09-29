@@ -111,12 +111,17 @@ public final class Constants {
     public static final double kPOSITION_TOLERANCE = 0.5;
     
     // TODO: Calibrate Arm preset positions in motor rotations
+<<<<<<< HEAD
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
     public static final double L2_POSITION_ROTATIONS = -22.4; 
     public static final double L3_POSITION_ROTATIONS = -22.4;
+=======
+    public static final double L2_POSITION_ROTATIONS = -22.2; 
+    public static final double L3_POSITION_ROTATIONS = -22.2;
+>>>>>>> 152b9c16f36a7a132d9dcb41a805c2930d5ed5ce
 
     // TODO: Tune manual arm speed
-    public static final double MANUAL_ARM_SPEED = 0.4;
+    public static final double MANUAL_ARM_SPEED = 0.5;
   }
 
   public static final class CoralIntakeConstants {
@@ -141,13 +146,13 @@ public final class Constants {
     public static final Transform3d LEFT_ROBOT_TO_CAMERA = 
         new Transform3d(
             new Translation3d(0.0, 0.0, 0.0), // CHANGE THESE: (X, Y, Z) in meters
-            new Rotation3d(0.0, 0.0, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
+            new Rotation3d(0.0, 0.00, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
         );
 
     public static final Transform3d RIGHT_ROBOT_TO_CAMERA = 
         new Transform3d(
             new Translation3d(0.0, 0.0, 0.0), // CHANGE THESE: (X, Y, Z) in meters
-            new Rotation3d(0.0, 0.0, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
+            new Rotation3d(0.0, -0.17, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
         );
 
     /**
@@ -167,9 +172,9 @@ public final class Constants {
      */
     public static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(
       // Red Alliance REEF Tags
-      9, 10, 11,
+     6, 7, 8, 9, 10, 11, 12,
       // Blue Alliance REEF Tags
-      13, 14, 15
+      17, 18, 19, 20, 21, 22
     );
   }
 
