@@ -63,14 +63,14 @@ public final class Constants {
     // Formula: (Wheel Diameter in Meters * PI) / (Gear Ratio)
     // Example for 6-inch wheels and a 8.45:1 gear ratio:
     // (0.1524 * Math.PI) / 8.45 = 0.0565
-    public static final double ROTATIONS_TO_METERS = 0.0565;
+    public static final double ROTATIONS_TO_METERS = 0.0494;
   }
   
   public static final class LocalizationConstants {
     // TODO: You must measure this track width from your own robot.
     // It is the distance between the centers of the wheels on opposite sides.
     // UNITS ARE METERS.
-    public static final double TRACK_WIDTH_METERS = 0.5588; 
+    public static final double TRACK_WIDTH_METERS = 0.6; 
   }
 
   public static final class AutoAlignConstants {
