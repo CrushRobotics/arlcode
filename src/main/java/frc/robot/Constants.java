@@ -228,10 +228,19 @@ public final class Constants {
     public static final double kP_TURN_TO_POSE = 0.05;
     // TODO: Tune this tolerance for the drive to pose command
     public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.2;
+    public static final double TURN_TO_POSE_TOLERANCE_DEGREES = 5.0;
 
-    // Define the coral collection area pose (e.g., near center field)
-    // TODO: Adjust the coordinates for the coral collection zone
-    public static final Pose2d CORAL_COLLECTION_POSE = new Pose2d(5.0, 4.0, Rotation2d.fromDegrees(0));
+
+    /**
+     * A list of AprilTag IDs that are on the RED ALLIANCE coral collection chutes.
+     */
+    public static final List<Integer> RED_CORAL_COLLECTION_TAG_IDS = List.of(1, 2);
+
+    /**
+     * A list of AprilTag IDs that are on the BLUE ALLIANCE coral collection chutes.
+     */
+    public static final List<Integer> BLUE_CORAL_COLLECTION_TAG_IDS = List.of(12, 13);
+
 
     // Old constants - can be reused or removed
     public static final double AUTO_DRIVE_SPEED = 0.25;

@@ -1,10 +1,16 @@
 package frc.robot.commands;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import frc.robot.Constants.ArmConstants;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.VisionConstants;
@@ -29,9 +35,6 @@ public class AutoL3Command extends SequentialCommandGroup {
         CANCoralIntakeSubsystem coralIntake,
         ReefState reefState
     ) {
-        // Find the closest scoring AprilTag to the coral collection zone
-        Pose2d secondTargetPose = findClosestScoringPose(AutoConstants.CORAL_COLLECTION_POSE)
-            .orElse(new Pose2d(6.21, 4.0, new edu.wpi.first.math.geometry.Rotation2d())); // Default if none found
 
         addCommands(
             // 1. Scan and score pre-loaded coral on L3
@@ -40,11 +43,42 @@ public class AutoL3Command extends SequentialCommandGroup {
             new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0),
 
             // 2. Go to collect another coral
-            new DriveToPoseCommand(drive, localization, AutoConstants.CORAL_COLLECTION_POSE),
+            // Move arm to a safe travel position first
+            Commands.runOnce(() -> arm.setPosition(ArmConstants.HOME_POSITION_ROTATIONS)),
+
+            // Defer the creation of the DriveToPoseCommand until this step is reached.
+            // This allows us to get the robot's current pose and alliance dynamically.
+            Commands.defer(() -> {
+                Optional<Alliance> alliance = DriverStation.getAlliance();
+                if (alliance.isEmpty()) {
+                    return Commands.none(); // No alliance, do nothing
+                }
+
+                List<Integer> collectionTagIds = alliance.get() == Alliance.Red 
+                    ? AutoConstants.RED_CORAL_COLLECTION_TAG_IDS 
+                    : AutoConstants.BLUE_CORAL_COLLECTION_TAG_IDS;
+
+                Pose2d currentPose = localization.getPose();
+                Pose2d collectionPose = findClosestPoseFromIds(currentPose, collectionTagIds)
+                    .orElse(currentPose); // Default to staying put if no tags found
+
+                return new DriveToPoseCommand(drive, localization, collectionPose);
+            }, Set.of(drive, localization, arm)),
+
             new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Up).withTimeout(2.0),
 
             // 3. Drive to the closest L3 scoring position and score
-            new DriveToPoseCommand(drive, localization, secondTargetPose),
+            // Move arm to a safe travel position again
+            Commands.runOnce(() -> arm.setPosition(ArmConstants.HOME_POSITION_ROTATIONS)),
+            
+            Commands.defer(() -> {
+                Pose2d currentPose = localization.getPose(); // Now we are at the collection spot
+                Pose2d secondScorePose = findClosestPoseFromIds(currentPose, VisionConstants.CORAL_SCORING_TAG_IDS)
+                    .orElse(currentPose); // Default if no scoring tags found
+
+                return new DriveToPoseCommand(drive, localization, secondScorePose);
+            }, Set.of(drive, localization, arm)),
+            
             new AutoAlignCommand(drive, localization, vision, reefState),
             new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
             new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0)
@@ -52,12 +86,13 @@ public class AutoL3Command extends SequentialCommandGroup {
     }
 
     /**
-     * Finds the closest valid scoring AprilTag to a given position on the field.
+     * Finds the closest valid AprilTag to a given position from a list of IDs.
      * @param fromPose The pose to measure distance from.
+     * @param tagIds The list of tag IDs to check.
      * @return An Optional containing the Pose2d of the closest tag, or empty if none are valid.
      */
-    private Optional<Pose2d> findClosestScoringPose(Pose2d fromPose) {
-        return VisionConstants.CORAL_SCORING_TAG_IDS.stream()
+    private Optional<Pose2d> findClosestPoseFromIds(Pose2d fromPose, List<Integer> tagIds) {
+        return tagIds.stream()
             .map(id -> FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(id))
             .filter(pose3d -> pose3d != null)
             .map(pose3d -> pose3d.toPose2d())
@@ -66,3 +101,4 @@ public class AutoL3Command extends SequentialCommandGroup {
             ));
     }
 }
+
