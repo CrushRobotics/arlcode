@@ -65,12 +65,21 @@ public class LocalizationSubsystem extends SubsystemBase {
     private void addVisionMeasurement(String limelightName) {
         PoseEstimate visionPoseEstimate = visionSubsystem.getMegaTag2Pose(limelightName);
 
+        // DEBUG: Check if we are receiving a pose estimate at all
+        SmartDashboard.putBoolean("Localization/HasPoseEstimate", visionPoseEstimate != null);
+
         if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
+             // DEBUG: Confirm that we are entering the block to add the measurement
+             SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", true);
+             
              // We have a valid pose from the camera. Let's add it to the estimator.
              // We can trust Limelight's timestamp for this.
              poseEstimator.addVisionMeasurement(
                 visionPoseEstimate.pose, 
                 visionPoseEstimate.timestampSeconds);
+        } else {
+            // DEBUG: If we don't add a measurement, explicitly say so.
+            SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", false);
         }
     }
 
@@ -95,3 +104,4 @@ public class LocalizationSubsystem extends SubsystemBase {
             newPose);
     }
 }
+
