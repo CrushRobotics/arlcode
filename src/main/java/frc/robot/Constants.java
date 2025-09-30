@@ -32,8 +32,8 @@ public final class Constants {
     public static final double I = 0.0;
     public static final double D = 0.0;
     
-    // TODO: Tune Auto-Align PID constant
-    public static final double kP_AUTO_ALIGN = 0.05; // P gain for auto-align rotation
+    // This kP is for the old AutoAlign command and can be removed or reused.
+    public static final double kP_AUTO_ALIGN = 0.05; 
   }
 
   public static class PIDElevatorConstants {
@@ -42,6 +42,7 @@ public final class Constants {
     public static final double I = 0.0;
     public static final double D = 0.0;
   }
+
   public static final class ClimberConstants {
     public static final double MAX_BOUND = 100.0;
     public static final double MIN_BOUND = -10.0;
@@ -49,12 +50,49 @@ public final class Constants {
     public static final int RIGHT_CLIMBER_ID = 24;
   }
 
-    public static final class DriveConstants {
+  public static final class DriveConstants {
     public static final int LEFT_LEADER_ID = 8;
     public static final int LEFT_FOLLOWER_ID = 9;
     public static final int RIGHT_LEADER_ID = 7;
     public static final int RIGHT_FOLLOWER_ID = 6;
+
+    // TODO: You MUST tune this value for your specific robot!
+    // This is the conversion factor from motor rotations to meters travelled.
+    // Formula: (Wheel Diameter in Meters * PI) / (Gear Ratio)
+    // Example for 6-inch wheels and a 8.45:1 gear ratio:
+    // (0.1524 * Math.PI) / 8.45 = 0.0565
+    public static final double ROTATIONS_TO_METERS = 0.0565;
   }
+  
+  public static final class LocalizationConstants {
+    // TODO: You must measure this track width from your own robot.
+    // It is the distance between the centers of the wheels on opposite sides.
+    // UNITS ARE METERS.
+    public static final double TRACK_WIDTH_METERS = 0.5588; 
+  }
+
+  public static final class AutoAlignConstants {
+    // TODO: Tune these PID constants for the AutoAlign command
+    public static final double kP_TURN = 0.05;
+    public static final double kI_TURN = 0.0;
+    public static final double kD_TURN = 0.0;
+    public static final double TURN_TOLERANCE_DEGREES = 2.0;
+
+    public static final double kP_DRIVE = 1.0;
+    public static final double kI_DRIVE = 0.0;
+    public static final double kD_DRIVE = 0.0;
+    public static final double DRIVE_TOLERANCE_METERS = 0.1;
+
+    // TODO: Tune the desired distance the robot should be from the target when aligned.
+    public static final double DESIRED_DISTANCE_METERS = 1.0;
+
+    // TODO: Tune the weights for the alignment cost function.
+    // Increase a weight to make that factor more important in target selection.
+    public static final double DISTANCE_WEIGHT = 1.5;
+    public static final double DRIVE_DIRECTION_WEIGHT = 2.0;
+    public static final double REEF_STATE_WEIGHT = 100.0; // Very high cost for scored targets
+  }
+
 
   public static final class ElevatorConstants {
     public static final int ELEVATOR_LEADER_ID = 2;
@@ -214,4 +252,3 @@ public final class Constants {
     );
   }
 }
-

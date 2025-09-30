@@ -4,6 +4,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.subsystems.ReefState;
+import frc.robot.Constants.AutoAlignConstants;
 import frc.robot.Constants.FieldConstants;
 import java.util.Optional;
 
@@ -14,12 +15,6 @@ import java.util.Optional;
  * scored on.
  */
 public final class AlignmentCostUtil {
-
-    // --- TUNING CONSTANTS ---
-    // Increase a weight to make that factor more important.
-    private static final double DISTANCE_WEIGHT = 1.5;
-    private static final double DRIVE_DIRECTION_WEIGHT = 2.0;
-    private static final double REEF_STATE_WEIGHT = 100.0; // Very high cost for scored targets
 
     /**
      * Represents a potential alignment target with its associated cost.
@@ -62,9 +57,9 @@ public final class AlignmentCostUtil {
         double driveCost = calculateDriveDirectionCost(currentPose, tagPose, robotVelocity);
         double reefCost = calculateReefStateCost(tagId, reefState);
 
-        double totalCost = (distanceCost * DISTANCE_WEIGHT) + 
-                           (driveCost * DRIVE_DIRECTION_WEIGHT) + 
-                           (reefCost * REEF_STATE_WEIGHT);
+        double totalCost = (distanceCost * AutoAlignConstants.DISTANCE_WEIGHT) + 
+                           (driveCost * AutoAlignConstants.DRIVE_DIRECTION_WEIGHT) + 
+                           (reefCost * AutoAlignConstants.REEF_STATE_WEIGHT);
 
         return Optional.of(new TargetCost(tagId, totalCost, tagPose));
     }
@@ -101,3 +96,4 @@ public final class AlignmentCostUtil {
         return reefState.isScored(tagId) ? 1.0 : 0.0;
     }
 }
+

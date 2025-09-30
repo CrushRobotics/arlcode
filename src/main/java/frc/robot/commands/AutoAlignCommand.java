@@ -7,7 +7,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import frc.robot.Constants;
+import frc.robot.Constants.AutoAlignConstants;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
@@ -39,13 +39,12 @@ public class AutoAlignCommand extends Command {
         this.visionSubsystem = vision;
         this.reefState = reef;
 
-        // TODO: Tune these PID constants for your robot!
-        turnController = new PIDController(Constants.PIDConstants.kP_AUTO_ALIGN, 0, 0);
+        turnController = new PIDController(AutoAlignConstants.kP_TURN, AutoAlignConstants.kI_TURN, AutoAlignConstants.kD_TURN);
         turnController.enableContinuousInput(-180, 180); // Angles are circular
-        turnController.setTolerance(2.0); // 2 degrees tolerance
+        turnController.setTolerance(AutoAlignConstants.TURN_TOLERANCE_DEGREES);
 
-        driveController = new PIDController(1.0, 0, 0); // P will likely need tuning
-        driveController.setTolerance(0.1); // 10 cm tolerance
+        driveController = new PIDController(AutoAlignConstants.kP_DRIVE, AutoAlignConstants.kI_DRIVE, AutoAlignConstants.kD_DRIVE);
+        driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
         
         addRequirements(drive, localization); // Vision is read-only, no need to require
     }
@@ -81,11 +80,10 @@ public class AutoAlignCommand extends Command {
         );
         
         // --- Forward/Backward Control ---
-        // We want to be a certain distance away from the target. Let's say 1 meter.
-        double desiredDistance = 1.0; // meters
+        // We want to be a certain distance away from the target.
         double currentDistance = translationToTarget.getNorm();
         
-        double driveSpeed = driveController.calculate(currentDistance, desiredDistance);
+        double driveSpeed = driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
 
         // Apply a max speed
         driveSpeed = Math.max(-0.5, Math.min(0.5, driveSpeed));
@@ -94,7 +92,7 @@ public class AutoAlignCommand extends Command {
         driveSubsystem.drive(driveSpeed, rotationSpeed);
 
         SmartDashboard.putNumber("AutoAlign/TargetID", bestTarget.get().tagId);
-        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - desiredDistance);
+        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
         SmartDashboard.putNumber("AutoAlign/RotationError", currentPose.getRotation().getDegrees() - desiredRotation.getDegrees());
     }
 
