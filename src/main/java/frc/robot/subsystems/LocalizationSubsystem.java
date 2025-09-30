@@ -68,7 +68,9 @@ public class LocalizationSubsystem extends SubsystemBase {
         // DEBUG: Check if we are receiving a pose estimate at all
         SmartDashboard.putBoolean("Localization/HasPoseEstimate", visionPoseEstimate != null);
 
-        if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
+        // THE FIX: We are removing `LimelightHelpers.validPoseEstimate` to trust any pose
+        // from MegaTag2, even if the tag count is temporarily zero.
+        if (visionPoseEstimate != null) {
              // DEBUG: Confirm that we are entering the block to add the measurement
              SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", true);
              
