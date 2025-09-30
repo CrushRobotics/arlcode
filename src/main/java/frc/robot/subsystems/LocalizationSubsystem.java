@@ -50,8 +50,7 @@ public class LocalizationSubsystem extends SubsystemBase {
                 driveSubsystem.getLeftDistanceMeters(),
                 driveSubsystem.getRightDistanceMeters());
 
-        // Fuse vision data from both Limelights
-        addVisionMeasurement("limelight-left");
+        // Fuse vision data from the Limelight
         addVisionMeasurement("limelight-right");
 
         // Update the Field2d widget with the estimated pose
@@ -96,4 +95,3 @@ public class LocalizationSubsystem extends SubsystemBase {
             newPose);
     }
 }
-

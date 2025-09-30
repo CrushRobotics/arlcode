@@ -20,10 +20,9 @@ public class VisionSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // Send robot orientation to both Limelights for MegaTag2
+        // Send robot orientation to the Limelight for MegaTag2
         // We get the latest heading from the drive subsystem's NavX
         double heading = driveSubsystem.getHeading();
-        LimelightHelpers.SetRobotOrientation("limelight-left", heading, 0, 0, 0, 0, 0);
         LimelightHelpers.SetRobotOrientation("limelight-right", heading, 0, 0, 0, 0, 0);
     }
 
