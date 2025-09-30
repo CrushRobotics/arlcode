@@ -1,79 +1,90 @@
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.kauailabs.navx.frc.AHRS;
+
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.SPI;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.DriveConstants;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class CANDriveSubsystem extends SubsystemBase {
-    private final CANBus kCANBus = new CANBus();
 
-    private final TalonFX leftLeader = new TalonFX(8, kCANBus);
-    private final TalonFX leftFollower = new TalonFX(9, kCANBus);
-    private final TalonFX rightLeader = new TalonFX(7, kCANBus);
-    private final TalonFX rightFollower = new TalonFX(6, kCANBus);
+    private final TalonFX leftLeader = new TalonFX(DriveConstants.LEFT_LEADER_ID);
+    private final TalonFX leftFollower = new TalonFX(DriveConstants.LEFT_FOLLOWER_ID);
+    private final TalonFX rightLeader = new TalonFX(DriveConstants.RIGHT_LEADER_ID);
+    private final TalonFX rightFollower = new TalonFX(DriveConstants.RIGHT_FOLLOWER_ID);
 
-    public final DutyCycleOut leftOut = new DutyCycleOut(0);
-    public final DutyCycleOut rightOut = new DutyCycleOut(0);
+    private final DutyCycleOut leftOut = new DutyCycleOut(0);
+    private final DutyCycleOut rightOut = new DutyCycleOut(0);
 
-    public final XboxController joystick = new XboxController(0);
+    private final AHRS navX = new AHRS(SPI.Port.kMXP);
+
+    // TODO: You MUST tune these values for your specific robot!
+    // This is the conversion factor from motor rotations to meters travelled.
+    // Formula: (Wheel Diameter in Meters * PI) / (Gear Ratio)
+    // Example for 6-inch wheels and a 8.45:1 gear ratio:
+    // (0.1524 * Math.PI) / 8.45 = 0.0565
+    private final double ROTATIONS_TO_METERS = 0.0565;
 
     public CANDriveSubsystem() {
         var leftConfiguration = new TalonFXConfiguration();
-        var rightConfiguration = new TalonFXConfiguration();
-
         leftConfiguration.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
-        rightConfiguration.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
-
         leftLeader.getConfigurator().apply(leftConfiguration);
         leftFollower.getConfigurator().apply(leftConfiguration);
+
+        var rightConfiguration = new TalonFXConfiguration();
+        rightConfiguration.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
         rightLeader.getConfigurator().apply(rightConfiguration);
         rightFollower.getConfigurator().apply(rightConfiguration);
 
         leftFollower.setControl(new Follower(leftLeader.getDeviceID(), false));
         rightFollower.setControl(new Follower(rightLeader.getDeviceID(), false));
 
-        leftLeader.setSafetyEnabled(true);
-        rightLeader.setSafetyEnabled(true);
+        // Reset encoders and gyro on startup
+        leftLeader.setPosition(0);
+        rightLeader.setPosition(0);
+        navX.reset();
     }
+    
+    public double getLeftDistanceMeters() {
+        return leftLeader.getPosition().getValueAsDouble() * ROTATIONS_TO_METERS;
+    }
+
+    public double getRightDistanceMeters() {
+        // Right side is often negative depending on motor mounting
+        return rightLeader.getPosition().getValueAsDouble() * ROTATIONS_TO_METERS;
+    }
+
+    public Rotation2d getRotation2d() {
+        // The NavX angle is negated because WPILib uses a different convention.
+        return Rotation2d.fromDegrees(-navX.getAngle());
+    }
+
+    public double getHeading() {
+        return getRotation2d().getDegrees();
+    }
+    
+    /** Gets the current speed of the robot's wheels. Useful for the cost function. */
+    public double getForwardVelocityMetersPerSec() {
+        double leftRPS = leftLeader.getVelocity().getValueAsDouble();
+        double rightRPS = rightLeader.getVelocity().getValueAsDouble();
+        // Average the two sides and convert from rotations/sec to meters/sec
+        return ((leftRPS + rightRPS) / 2.0) * ROTATIONS_TO_METERS;
+    }
+
 
     @Override
     public void periodic() {
-        // This method will be called once per scheduler run
-        
-        // Get the velocity of the leader motors in Rotations Per Second.
-        // The sign of the velocity indicates the direction (positive for forward, negative for reverse).
-        double leftVelocityRPS = leftLeader.getVelocity().getValueAsDouble();
-        double rightVelocityRPS = rightLeader.getVelocity().getValueAsDouble();
-
-        // Send velocity data to the SmartDashboard
-        SmartDashboard.putNumber("Left Drive Velocity (RPS)", leftVelocityRPS);
-        SmartDashboard.putNumber("Right Drive Velocity (RPS)", rightVelocityRPS);
-
-        // Determine a general direction string based on the average velocity
-        double averageVelocity = (leftVelocityRPS + rightVelocityRPS) / 2.0;
-        String direction;
-        if (averageVelocity > 0.1) {
-            direction = "Forward";
-        } else if (averageVelocity < -0.1) {
-            direction = "Reverse";
-        } else {
-            direction = "Stopped";
-        }
-        
-        // Send the direction string to the SmartDashboard
-        SmartDashboard.putString("Drivetrain Direction", direction);
-
-        // Also send the commanded output percentages to the dashboard for debugging
-        SmartDashboard.putNumber("Left Drive Output (%)", leftOut.Output);
-        SmartDashboard.putNumber("Right Drive Output (%)", rightOut.Output);
+        SmartDashboard.putNumber("Left Drive Distance (m)", getLeftDistanceMeters());
+        SmartDashboard.putNumber("Right Drive Distance (m)", getRightDistanceMeters());
+        SmartDashboard.putNumber("Robot Heading (deg)", getHeading());
     }
-
 
     public void drive(double fwd, double rot) {
         leftOut.Output = (fwd + rot) * 0.65;
@@ -83,4 +94,3 @@ public class CANDriveSubsystem extends SubsystemBase {
         rightLeader.setControl(rightOut);
     }
 }
-

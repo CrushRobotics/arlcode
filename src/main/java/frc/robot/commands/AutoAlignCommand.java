@@ -1,62 +1,146 @@
 package frc.robot.commands;
 
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import frc.robot.Constants;
+import frc.robot.Constants.VisionConstants;
 import frc.robot.subsystems.CANDriveSubsystem;
+import frc.robot.subsystems.LocalizationSubsystem;
+import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.subsystems.VisionSubsystem.BestTarget;
+import frc.robot.subsystems.AlignmentCostUtil;
+import frc.robot.subsystems.AlignmentCostUtil.TargetCost;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
-/**
- * A command to automatically align the robot with the best visible AprilTag.
- * The robot will rotate to center the target in the camera's view.
- */
 public class AutoAlignCommand extends Command {
-  
-  private final CANDriveSubsystem driveSubsystem;
-  private final VisionSubsystem visionSubsystem;
 
-  /**
-   * Creates a new AutoAlignCommand.
-   *
-   * @param driveSubsystem The subsystem used for driving the robot.
-   * @param visionSubsystem The subsystem used for vision processing.
-   */
-  public AutoAlignCommand(CANDriveSubsystem driveSubsystem, VisionSubsystem visionSubsystem) {
-    this.driveSubsystem = driveSubsystem;
-    this.visionSubsystem = visionSubsystem;
-    addRequirements(driveSubsystem, visionSubsystem);
-  }
+    private final CANDriveSubsystem driveSubsystem;
+    private final LocalizationSubsystem localizationSubsystem;
+    private final VisionSubsystem visionSubsystem;
+    private final ReefState reefState;
 
-  // Called every time the scheduler runs while the command is scheduled.
-  @Override
-  public void execute() {
-    Optional<BestTarget> bestTarget = visionSubsystem.getBestVisibleTarget();
+    private final PIDController turnController;
+    private final PIDController driveController;
 
-    if (bestTarget.isPresent()) {
-      // If a target is visible, calculate the rotation speed using a P controller.
-      // The error is the horizontal offset (tx) of the target.
-      double error = bestTarget.get().tx;
-      double rotationSpeed = error * Constants.PIDConstants.kP_AUTO_ALIGN;
+    private Optional<TargetCost> bestTarget = Optional.empty();
 
-      // Drive the robot with only rotation, no forward movement.
-      driveSubsystem.drive(0, rotationSpeed);
-    } else {
-      // If no target is visible, stop the robot.
-      driveSubsystem.drive(0, 0);
+    public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
+        this.driveSubsystem = drive;
+        this.localizationSubsystem = localization;
+        this.visionSubsystem = vision;
+        this.reefState = reef;
+
+        // TODO: Tune these PID constants for your robot!
+        turnController = new PIDController(Constants.PIDConstants.kP_AUTO_ALIGN, 0, 0);
+        turnController.enableContinuousInput(-180, 180); // Angles are circular
+        turnController.setTolerance(2.0); // 2 degrees tolerance
+
+        driveController = new PIDController(1.0, 0, 0); // P will likely need tuning
+        driveController.setTolerance(0.1); // 10 cm tolerance
+        
+        addRequirements(drive, localization); // Vision is read-only, no need to require
     }
-  }
 
-  // Called once the command ends or is interrupted.
-  @Override
-  public void end(boolean interrupted) {
-    // Stop the drive motors when the command finishes.
-    driveSubsystem.drive(0, 0);
-  }
+    @Override
+    public void initialize() {
+        bestTarget = findBestTarget();
+        if (bestTarget.isPresent()) {
+            System.out.println("Auto Align Initialized: Targeting Tag ID " + bestTarget.get().tagId);
+        } else {
+            System.out.println("Auto Align Initialized: No valid targets found.");
+        }
+    }
 
-  // This command never finishes on its own; it's meant to be used with whileTrue().
-  @Override
-  public boolean isFinished() {
-    return false;
-  }
+    @Override
+    public void execute() {
+        if (bestTarget.isEmpty()) {
+            driveSubsystem.drive(0, 0);
+            return;
+        }
+
+        Pose2d currentPose = localizationSubsystem.getPose();
+        Pose2d targetPose = bestTarget.get().targetPose;
+        
+        // --- Rotation Control ---
+        // We want to face the target.
+        Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
+        Rotation2d desiredRotation = translationToTarget.getAngle();
+        
+        double rotationSpeed = turnController.calculate(
+            currentPose.getRotation().getDegrees(),
+            desiredRotation.getDegrees()
+        );
+        
+        // --- Forward/Backward Control ---
+        // We want to be a certain distance away from the target. Let's say 1 meter.
+        double desiredDistance = 1.0; // meters
+        double currentDistance = translationToTarget.getNorm();
+        
+        double driveSpeed = driveController.calculate(currentDistance, desiredDistance);
+
+        // Apply a max speed
+        driveSpeed = Math.max(-0.5, Math.min(0.5, driveSpeed));
+        rotationSpeed = Math.max(-0.5, Math.min(0.5, rotationSpeed));
+
+        driveSubsystem.drive(driveSpeed, rotationSpeed);
+
+        SmartDashboard.putNumber("AutoAlign/TargetID", bestTarget.get().tagId);
+        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - desiredDistance);
+        SmartDashboard.putNumber("AutoAlign/RotationError", currentPose.getRotation().getDegrees() - desiredRotation.getDegrees());
+    }
+
+    private Optional<TargetCost> findBestTarget() {
+        List<TargetCost> potentialTargets = new ArrayList<>();
+        Pose2d currentPose = localizationSubsystem.getPose();
+        double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
+
+        for (int tagId : VisionConstants.CORAL_SCORING_TAG_IDS) {
+            AlignmentCostUtil.calculateCost(tagId, currentPose, velocity, reefState)
+                .ifPresent(potentialTargets::add);
+        }
+
+        if (potentialTargets.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // The best target is the one with the lowest cost
+        Collections.sort(potentialTargets);
+        return Optional.of(potentialTargets.get(0));
+    }
+
+    @Override
+    public boolean isFinished() {
+        // The command is finished if we are at both the distance and angle setpoints.
+        return driveController.atSetpoint() && turnController.atSetpoint();
+    }
+
+    @Override
+    public void end(boolean interrupted) {
+        driveSubsystem.drive(0, 0);
+    }
+
+    /**
+     * A helper method to create an InstantCommand that marks the current best target as scored.
+     * @return A command that can be bound to a button.
+     */
+    public Command getMarkScoredCommand() {
+        // ReefState is not a subsystem, so it should not be passed as a requirement.
+        return new InstantCommand(() -> {
+            Optional<TargetCost> target = findBestTarget();
+            target.ifPresent(t -> {
+                reefState.markScored(t.tagId);
+                System.out.println("Marked Tag " + t.tagId + " as scored.");
+            });
+        });
+    }
 }
+
