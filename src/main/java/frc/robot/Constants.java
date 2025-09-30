@@ -185,7 +185,7 @@ public final class Constants {
 
     public static final Transform3d RIGHT_ROBOT_TO_CAMERA = 
         new Transform3d(
-            new Translation3d(0.0, 0.0, 0.0), // CHANGE THESE: (X, Y, Z) in meters
+            new Translation3d(0.29, 0.0, 0.89), // CHANGE THESE: (X, Y, Z) in meters
             new Rotation3d(0.0, -0.17, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
         );
 
