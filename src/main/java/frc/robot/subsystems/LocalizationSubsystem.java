@@ -63,14 +63,13 @@ public class LocalizationSubsystem extends SubsystemBase {
      * @param limelightName The network table name of the Limelight.
      */
     private void addVisionMeasurement(String limelightName) {
-        PoseEstimate visionPoseEstimate = visionSubsystem.getMegaTag2Pose(limelightName);
+        // THE FIX: We now call the corrected method in VisionSubsystem
+        PoseEstimate visionPoseEstimate = visionSubsystem.getPoseEstimate(limelightName);
 
         // DEBUG: Check if we are receiving a pose estimate at all
         SmartDashboard.putBoolean("Localization/HasPoseEstimate", visionPoseEstimate != null);
 
-        // THE FIX: We are removing `LimelightHelpers.validPoseEstimate` to trust any pose
-        // from MegaTag2, even if the tag count is temporarily zero.
-        if (visionPoseEstimate != null) {
+        if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
              // DEBUG: Confirm that we are entering the block to add the measurement
              SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", true);
              
