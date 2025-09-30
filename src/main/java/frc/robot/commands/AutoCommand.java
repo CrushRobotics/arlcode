@@ -6,13 +6,14 @@ package frc.robot.commands;
 
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants.AutoConstants;
 import frc.robot.subsystems.CANDriveSubsystem;
 
-// Command to run the robot at 1/2 power for 1 second in autonomous
+// Command to run the robot forward for a set time in autonomous
 public class AutoCommand extends Command {
   CANDriveSubsystem driveSubsystem;
   private Timer timer;
-  private double seconds = 1.0;
+  private double seconds = AutoConstants.AUTO_DRIVE_SECONDS;
 
   // Constructor. Runs only once when the command is first created.
   public AutoCommand(CANDriveSubsystem driveSubsystem) {
@@ -37,16 +38,15 @@ public class AutoCommand extends Command {
   // Runs every cycle while the command is scheduled (~50 times per second)
   @Override
   public void execute() {
-    // drive at 1/2 speed
-    // driveSubsystem.driveArcade(0.25, 0.0);
-    // driveSubsystem.driveArcade(0, -1);
+    // drive forward at a constant speed
+    driveSubsystem.drive(AutoConstants.AUTO_DRIVE_SPEED, 0.0);
   }
 
   // Runs each time the command ends via isFinished or being interrupted.
   @Override
   public void end(boolean isInterrupted) {
     // stop drive motors
-    // driveSubsystem.driveArcade(0.0, 0.0);
+    driveSubsystem.drive(0.0, 0.0);
   }
 
   // Runs every cycle while the command is scheduled to check if the command is

@@ -1,10 +1,13 @@
 package frc.robot;
 
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.AutoAlignCommand;
+import frc.robot.commands.AutoL3Command;
 import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
@@ -20,6 +23,13 @@ import frc.robot.commands.MoveArmCommand.ArmDirection;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 
 public class RobotContainer {
+  // Enum for autonomous modes
+  private enum AutoMode {
+    DO_NOTHING,
+    L3_AUTO,
+    SIMPLE_AUTO_DRIVE
+  }
+
   // The robot's subsystems
   private final CANDriveSubsystem driveSubsystem = new CANDriveSubsystem();
   // Pass the drive subsystem to vision for orientation data
@@ -39,11 +49,35 @@ public class RobotContainer {
   // State tracking for scoring
   private final ReefState reefState = new ReefState();
 
+  // The autonomous commands and chooser
+  private final Command autoL3Command;
+  private final Command simpleAutoDriveCommand;
+  private final SendableChooser<AutoMode> autoChooser = new SendableChooser<>();
+
+
   // Controllers
   private final CommandXboxController driverController = new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
   private final CommandXboxController operatorController = new CommandXboxController(OperatorConstants.OPERATOR_CONTROLLER_PORT);
 
   public RobotContainer() {
+    // Instantiate the autonomous commands
+    autoL3Command = new AutoL3Command(
+      driveSubsystem, 
+      localizationSubsystem, 
+      visionSubsystem, 
+      armSubsystem, 
+      elevatorSubsystem, 
+      coralIntakeSubsystem, 
+      reefState);
+    
+    simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
+
+    // Configure the auto chooser
+    autoChooser.setDefaultOption("Do Nothing", AutoMode.DO_NOTHING);
+    autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
+    autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
+    SmartDashboard.putData("Auto Chooser", autoChooser);
+
     configureBindings();
   }
 
@@ -83,13 +117,24 @@ public class RobotContainer {
      driverController.x().whileTrue(new ClimberLowerCommand(climberSubsystem));
      
      // Added back the binding for the LED subsystem
-     driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
+     driverController.start().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
   }
 
   public Command getAutonomousCommand() {
-    // You can build a more advanced autonomous using your new localization subsystem!
-    // For now, it returns null.
-    return null;
+    // Get the selected autonomous mode from the chooser
+    AutoMode selected = autoChooser.getSelected();
+    
+    // Return the corresponding command
+    switch (selected) {
+      case L3_AUTO:
+        return autoL3Command;
+      case SIMPLE_AUTO_DRIVE:
+        return simpleAutoDriveCommand;
+      case DO_NOTHING:
+      default:
+        // By default, do nothing
+        return null;
+    }
   }
 }
 

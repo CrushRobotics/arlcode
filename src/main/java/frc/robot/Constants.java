@@ -6,7 +6,9 @@ package frc.robot;
 
 import java.util.List;
 import java.util.Map;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -154,6 +156,11 @@ public final class Constants {
     // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
     public static final double L2_POSITION_ROTATIONS = -13.4; 
     public static final double L3_POSITION_ROTATIONS = -13.4;
+    
+    // A new "home" position for safe travel
+    // TODO: Tune this value for the arm's home position
+    public static final double HOME_POSITION_ROTATIONS = 0.0;
+
 
     // TODO: Tune manual arm speed
     public static final double MANUAL_ARM_SPEED = 0.5;
@@ -214,7 +221,19 @@ public final class Constants {
   }
 
   public static final class AutoConstants {
-    // TODO: Tune autonomous command values
+    // New constants for the DriveToPoseCommand
+    // TODO: Tune this PID constant for driving to a pose
+    public static final double kP_DRIVE_TO_POSE = 1.2;
+    // TODO: Tune this PID constant for turning to a pose
+    public static final double kP_TURN_TO_POSE = 0.05;
+    // TODO: Tune this tolerance for the drive to pose command
+    public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.2;
+
+    // Define the coral collection area pose (e.g., near center field)
+    // TODO: Adjust the coordinates for the coral collection zone
+    public static final Pose2d CORAL_COLLECTION_POSE = new Pose2d(5.0, 4.0, Rotation2d.fromDegrees(0));
+
+    // Old constants - can be reused or removed
     public static final double AUTO_DRIVE_SPEED = 0.25;
     public static final double AUTO_DRIVE_SECONDS = 3.0;
     public static final double AUTO_INTAKE_SPEED = 0.2;
@@ -252,3 +271,4 @@ public final class Constants {
     );
   }
 }
+
