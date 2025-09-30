@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
@@ -24,6 +25,28 @@ public class VisionSubsystem extends SubsystemBase {
         // We get the latest heading from the drive subsystem's NavX
         double heading = driveSubsystem.getHeading();
         LimelightHelpers.SetRobotOrientation("limelight-right", heading, 0, 0, 0, 0, 0);
+
+        // --- DEBUGGING OUTPUTS ---
+        SmartDashboard.putNumber("Vision/SentHeading", heading);
+        
+        // Get the latest pose estimate to display its data
+        PoseEstimate poseEstimate = getMegaTag2Pose("limelight-right");
+
+        // Check if the Limelight has any valid target
+        boolean hasTarget = LimelightHelpers.getTV("limelight-right");
+        SmartDashboard.putBoolean("Vision/HasTarget", hasTarget);
+
+        if (hasTarget && poseEstimate != null && LimelightHelpers.validPoseEstimate(poseEstimate)) {
+            // We have a valid pose from the camera
+            SmartDashboard.putNumber("Vision/PoseX", poseEstimate.pose.getX());
+            SmartDashboard.putNumber("Vision/PoseY", poseEstimate.pose.getY());
+            SmartDashboard.putNumber("Vision/PoseRotation", poseEstimate.pose.getRotation().getDegrees());
+            SmartDashboard.putNumber("Vision/TagCount", poseEstimate.tagCount);
+            SmartDashboard.putNumber("Vision/Latency", poseEstimate.latency);
+        } else {
+            // No valid target, set default values
+            SmartDashboard.putNumber("Vision/TagCount", 0);
+        }
     }
 
     /**
@@ -45,3 +68,4 @@ public class VisionSubsystem extends SubsystemBase {
         return LimelightHelpers.getBotPose2d_wpiBlue(limelightName);
     }
 }
+
