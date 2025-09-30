@@ -43,8 +43,8 @@ public class ClimberSubsystem extends SubsystemBase {
 
     public void Climb(){
         if(isInUpperBound()) {
-            leftClimber.set(1);
-            rightClimber.set(1);
+            leftClimber.set(0.45);
+            rightClimber.set(0.45);
         }
         else {
             leftClimber.set(0);
