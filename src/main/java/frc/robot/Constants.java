@@ -58,18 +58,10 @@ public final class Constants {
     public static final int RIGHT_LEADER_ID = 7;
     public static final int RIGHT_FOLLOWER_ID = 6;
 
-    // TODO: You MUST tune this value for your specific robot!
-    // This is the conversion factor from motor rotations to meters travelled.
-    // Formula: (Wheel Diameter in Meters * PI) / (Gear Ratio)
-    // Example for 6-inch wheels and a 8.45:1 gear ratio:
-    // (0.1524 * Math.PI) / 8.45 = 0.0565
     public static final double ROTATIONS_TO_METERS = 0.0494;
   }
   
   public static final class LocalizationConstants {
-    // TODO: You must measure this track width from your own robot.
-    // It is the distance between the centers of the wheels on opposite sides.
-    // UNITS ARE METERS.
     public static final double TRACK_WIDTH_METERS = 0.6; 
   }
 
