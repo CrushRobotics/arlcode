@@ -1,8 +1,11 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.RelativeEncoder;
-// import com.revrobotics.spark.SparkBase.IdleMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -12,6 +15,9 @@ public class ClimberSubsystem extends SubsystemBase {
     
     private SparkMax leftClimber;
     private SparkMax rightClimber;
+
+    private SparkMaxConfig leftConfig;
+    private SparkMaxConfig rightConfig;
 
     private RelativeEncoder leftEncoder;
     private RelativeEncoder rightEncoder;
@@ -24,10 +30,17 @@ public class ClimberSubsystem extends SubsystemBase {
         // leftClimber.restoreFactoryDefaults();
         // rightClimber.restoreFactoryDefaults();
 
+        leftConfig = new SparkMaxConfig();
+        rightConfig = new SparkMaxConfig();
+
         leftClimber.setInverted(true);
         
-        //leftClimber.setIdleMode(IdleMode.kBrake);
-        // rightClimber.setIdleMode(IdleMode.kBrake);
+        leftConfig.idleMode(IdleMode.kBrake);
+        rightConfig.idleMode(IdleMode.kBrake);
+
+        leftClimber.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+        rightClimber.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+
 
         leftEncoder = leftClimber.getEncoder();
         rightEncoder = rightClimber.getEncoder();
@@ -54,8 +67,8 @@ public class ClimberSubsystem extends SubsystemBase {
 
     public void Lower() {
         if(isInLowerBound()) {    
-            leftClimber.set(-1);
-            rightClimber.set(-1);
+            leftClimber.set(-0.45);
+            rightClimber.set(-0.45);
         }
         else {
             leftClimber.set(0);
