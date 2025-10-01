@@ -39,7 +39,6 @@ public final class Constants {
   }
 
   public static class PIDElevatorConstants {
-    // TODO: Tune Elevator PID constants
     public static final double P = 0.1;
     public static final double I = 0.0;
     public static final double D = 0.0;
@@ -96,7 +95,7 @@ public final class Constants {
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
-    public static final double kF = 0.1;
+    public static final double kF = 0.3;
 
     // TODO: Tune Min/Max output for Elevator PID controller
     public static final double kMIN_OUTPUT = -0.7;
@@ -105,8 +104,7 @@ public final class Constants {
     // TODO: Tune tolerance for Elevator atSetpoint() check
     public static final double kPOSITION_TOLERANCE = 0.5;
 
-    // TODO: Calibrate Elevator preset positions in motor rotations
-    // Based on calculations: L2 = 16.85in, L3 = 32.54in
+    
     public static final double L2_POSITION_ROTATIONS = 16.8; 
     public static final double L3_POSITION_ROTATIONS = 32.5;
 
@@ -135,7 +133,7 @@ public final class Constants {
     public static final double kP = 0.1;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
-    public static final double kF = 0.1;
+    public static final double kF = 0.2;
 
     // TODO: Tune Min/Max output for Arm PID controller
     public static final double kMIN_OUTPUT = -0.5;
@@ -144,17 +142,16 @@ public final class Constants {
     // TODO: Tune tolerance for Arm atSetpoint() check
     public static final double kPOSITION_TOLERANCE = 0.5;
     
-    // TODO: Calibrate Arm preset positions in motor rotations
-    // Based on calculations: L2 = 53.44deg, L3 = 54.20deg
-    public static final double L2_POSITION_ROTATIONS = -13.4; 
-    public static final double L3_POSITION_ROTATIONS = -13.4;
+  
+    public static final double L2_POSITION_ROTATIONS = -14; 
+    public static final double L3_POSITION_ROTATIONS = -14;
     
     // A new "home" position for safe travel
     // TODO: Tune this value for the arm's home position
     public static final double HOME_POSITION_ROTATIONS = 0.0;
 
 
-    // TODO: Tune manual arm speed
+    
     public static final double MANUAL_ARM_SPEED = 0.5;
   }
 
@@ -185,8 +182,8 @@ public final class Constants {
 
     public static final Transform3d RIGHT_ROBOT_TO_CAMERA = 
         new Transform3d(
-            new Translation3d(0.29, 0.0, 0.89), // CHANGE THESE: (X, Y, Z) in meters
-            new Rotation3d(0.0, -0.17, 0.0)      // CHANGE THESE: (Roll, Pitch, Yaw) in radians
+            new Translation3d(0.029, -0.05, 0.089), 
+            new Rotation3d(0.0, -0.27, 0.0)      
         );
 
     /**
@@ -196,7 +193,7 @@ public final class Constants {
     public static final double LEFT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
     public static final double LEFT_CAMERA_PITCH_RADIANS = 0.0;
 
-    public static final double RIGHT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(26); 
+    public static final double RIGHT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(32); 
     public static final double RIGHT_CAMERA_PITCH_RADIANS = 0.0;
 
 
