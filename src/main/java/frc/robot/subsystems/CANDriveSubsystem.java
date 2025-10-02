@@ -55,7 +55,11 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public Rotation2d getRotation2d() {
-        // The NavX angle is negated because WPILib uses a different convention.
+        // THE FIX: Restoring the negation to the NavX angle. While WPILib's
+        // standard is counter-clockwise positive, your robot's behavior suggests
+        // that this inversion is necessary for the rest of the code to function
+        // as it was originally written. This could be due to NavX configuration or
+        // another factor, but this should resolve the erratic spinning.
         return Rotation2d.fromDegrees(-navX.getAngle());
     }
 

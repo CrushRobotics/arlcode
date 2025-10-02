@@ -39,6 +39,10 @@ public class DriveToPoseCommand extends Command {
         // Allow the turn controller to handle wrapping from -180 to 180 degrees
         turnController.enableContinuousInput(-180, 180);
 
+        // Set tolerances for the PID controllers to use with atSetpoint()
+        driveController.setTolerance(AutoConstants.DRIVE_TO_POSE_TOLERANCE_METERS);
+        turnController.setTolerance(AutoConstants.TURN_TO_POSE_TOLERANCE_DEGREES);
+
         addRequirements(drive, localization);
     }
 
@@ -46,28 +50,42 @@ public class DriveToPoseCommand extends Command {
     public void execute() {
         Pose2d currentPose = localizationSubsystem.getPose();
         
-        // Calculate the desired heading to face the target location
+        // Calculate the vector from the robot to the target
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
+        
+        // The desired heading is to face the target location
         Rotation2d desiredRotation = translationToTarget.getAngle();
 
-        // Use PID controllers to calculate drive and turn speeds
-        double driveSpeed = -driveController.calculate(currentPose.getTranslation().getDistance(targetPose.getTranslation()), 0);
-        double turnSpeed = turnController.calculate(currentPose.getRotation().getDegrees(), desiredRotation.getDegrees());
+        double driveSpeed = 0;
+        double turnSpeed = 0;
+
+        // We use the PID controller's atSetpoint() check which uses the tolerance we set.
+        // This creates a state machine: first turn, then drive.
+        if (!turnController.atSetpoint()) {
+            // If we are not facing the target, focus on turning. Drive speed is 0.
+            turnSpeed = turnController.calculate(currentPose.getRotation().getDegrees(), desiredRotation.getDegrees());
+        } else {
+            // If we are facing the target, focus on driving forward. Turn speed is 0.
+            // The distance to the target is the measurement, with a goal of 0 distance.
+            driveSpeed = -driveController.calculate(translationToTarget.getNorm(), 0);
+        }
 
         // Clamp the speeds to a reasonable maximum
         driveSpeed = Math.max(-0.6, Math.min(0.6, driveSpeed));
         turnSpeed = Math.max(-0.6, Math.min(0.6, turnSpeed));
 
-        driveSubsystem.drive(driveSpeed, turnSpeed);
+        // The turn speed from the PID controller must be negated.
+        // The PID controller provides a counter-clockwise positive value (WPILib standard),
+        // but the drive() method expects a clockwise positive value for rotation.
+        driveSubsystem.drive(driveSpeed, -turnSpeed);
     }
 
     @Override
     public boolean isFinished() {
-        // The command is finished when the robot is close to the target location
-        Pose2d currentPose = localizationSubsystem.getPose();
-        double distanceError = currentPose.getTranslation().getDistance(targetPose.getTranslation());
-        
-        return distanceError < AutoConstants.DRIVE_TO_POSE_TOLERANCE_METERS;
+        // The command is finished when the robot is at the target location AND facing
+        // the correct direction. We use the PID controller's atSetpoint() method
+        // which considers the tolerance we set in the constructor.
+        return driveController.atSetpoint() && turnController.atSetpoint();
     }
 
     @Override
@@ -76,3 +94,4 @@ public class DriveToPoseCommand extends Command {
         driveSubsystem.drive(0, 0);
     }
 }
+
