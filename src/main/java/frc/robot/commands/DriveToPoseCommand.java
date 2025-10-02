@@ -56,28 +56,18 @@ public class DriveToPoseCommand extends Command {
         // The desired heading is to face the target location
         Rotation2d desiredRotation = translationToTarget.getAngle();
 
-        double driveSpeed = 0;
-        double turnSpeed = 0;
-
-        // We use the PID controller's atSetpoint() check which uses the tolerance we set.
-        // This creates a state machine: first turn, then drive.
-        if (!turnController.atSetpoint()) {
-            // If we are not facing the target, focus on turning. Drive speed is 0.
-            turnSpeed = turnController.calculate(currentPose.getRotation().getDegrees(), desiredRotation.getDegrees());
-        } else {
-            // If we are facing the target, focus on driving forward. Turn speed is 0.
-            // The distance to the target is the measurement, with a goal of 0 distance.
-            driveSpeed = -driveController.calculate(translationToTarget.getNorm(), 0);
-        }
+        // Use PID controllers to calculate drive and turn speeds simultaneously
+        double driveSpeed = -driveController.calculate(translationToTarget.getNorm(), 0);
+        double turnSpeed = turnController.calculate(currentPose.getRotation().getDegrees(), desiredRotation.getDegrees());
 
         // Clamp the speeds to a reasonable maximum
         driveSpeed = Math.max(-0.6, Math.min(0.6, driveSpeed));
         turnSpeed = Math.max(-0.6, Math.min(0.6, turnSpeed));
 
-        // The turn speed from the PID controller must be negated.
-        // The PID controller provides a counter-clockwise positive value (WPILib standard),
-        // but the drive() method expects a clockwise positive value for rotation.
-        driveSubsystem.drive(driveSpeed, -turnSpeed);
+        // THE FIX: With a consistent CCW-positive coordinate system from the gyro
+        // to the drive method, we no longer need to negate the turn speed. The PID
+        // output now correctly maps to the desired motor behavior.
+        driveSubsystem.drive(driveSpeed, turnSpeed);
     }
 
     @Override

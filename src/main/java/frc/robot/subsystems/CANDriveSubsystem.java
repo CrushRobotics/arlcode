@@ -55,12 +55,10 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public Rotation2d getRotation2d() {
-        // THE FIX: Restoring the negation to the NavX angle. While WPILib's
-        // standard is counter-clockwise positive, your robot's behavior suggests
-        // that this inversion is necessary for the rest of the code to function
-        // as it was originally written. This could be due to NavX configuration or
-        // another factor, but this should resolve the erratic spinning.
-        return Rotation2d.fromDegrees(-navX.getAngle());
+        // THE FIX: The NavX getAngle() method is counter-clockwise positive,
+        // which is the standard convention for WPILib. Removing the negation
+        // ensures the gyro reading is consistent with the rest of the code.
+        return Rotation2d.fromDegrees(navX.getAngle());
     }
 
     public double getHeading() {
@@ -84,6 +82,7 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public void drive(double fwd, double rot) {
+        // Positive 'rot' value results in a counter-clockwise turn.
         leftOut.Output = (fwd + rot) * 0.65;
         rightOut.Output = (fwd - rot) * 0.65;
 
