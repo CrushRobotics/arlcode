@@ -81,7 +81,11 @@ public class AutoAlignCommand extends Command {
         // We want to be a certain distance away from the target.
         double currentDistance = translationToTarget.getNorm();
         
-        double driveSpeed = driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
+        // THE FIX: The output of the PID controller for driving was inverted.
+        // A positive error (too close) was causing forward motion, and a negative
+        // error (too far) was causing backward motion. Negating the result
+        // corrects this behavior.
+        double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
 
         // Apply a max speed
         driveSpeed = Math.max(-0.5, Math.min(0.5, driveSpeed));
