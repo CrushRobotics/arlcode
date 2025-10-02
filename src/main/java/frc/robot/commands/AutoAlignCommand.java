@@ -25,7 +25,6 @@ public class AutoAlignCommand extends Command {
 
     private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
-    private final VisionSubsystem visionSubsystem;
     private final ReefState reefState;
 
     private final PIDController turnController;
@@ -36,7 +35,6 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
-        this.visionSubsystem = vision;
         this.reefState = reef;
 
         turnController = new PIDController(AutoAlignConstants.kP_TURN, AutoAlignConstants.kI_TURN, AutoAlignConstants.kD_TURN);
@@ -53,7 +51,7 @@ public class AutoAlignCommand extends Command {
     public void initialize() {
         bestTarget = findBestTarget();
         if (bestTarget.isPresent()) {
-            System.out.println("Auto Align Initialized: Targeting Tag ID " + bestTarget.get().tagId);
+            System.out.println("Auto Align Initialized: Targeting " + bestTarget.get().scoringPose.id);
         } else {
             System.out.println("Auto Align Initialized: No valid targets found.");
         }
@@ -67,7 +65,7 @@ public class AutoAlignCommand extends Command {
         }
 
         Pose2d currentPose = localizationSubsystem.getPose();
-        Pose2d targetPose = bestTarget.get().targetPose;
+        Pose2d targetPose = bestTarget.get().scoringPose.pose;
         
         // --- Rotation Control ---
         // We want to face the target.
@@ -91,7 +89,7 @@ public class AutoAlignCommand extends Command {
 
         driveSubsystem.drive(driveSpeed, rotationSpeed);
 
-        SmartDashboard.putNumber("AutoAlign/TargetID", bestTarget.get().tagId);
+        SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
         SmartDashboard.putNumber("AutoAlign/RotationError", currentPose.getRotation().getDegrees() - desiredRotation.getDegrees());
     }
@@ -101,8 +99,9 @@ public class AutoAlignCommand extends Command {
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
 
-        for (int tagId : VisionConstants.CORAL_SCORING_TAG_IDS) {
-            AlignmentCostUtil.calculateCost(tagId, currentPose, velocity, reefState)
+        // Iterate through all possible scoring poses, not just tag IDs
+        for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
+            AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
                 .ifPresent(potentialTargets::add);
         }
 
@@ -135,10 +134,9 @@ public class AutoAlignCommand extends Command {
         return new InstantCommand(() -> {
             Optional<TargetCost> target = findBestTarget();
             target.ifPresent(t -> {
-                reefState.markScored(t.tagId);
-                System.out.println("Marked Tag " + t.tagId + " as scored.");
+                reefState.markScored(t.scoringPose.id);
+                System.out.println("Marked " + t.scoringPose.id + " as scored.");
             });
         });
     }
 }
-

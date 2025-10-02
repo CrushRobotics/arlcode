@@ -13,7 +13,6 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.Constants.ArmConstants;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.FieldConstants;
-import frc.robot.Constants.VisionConstants;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 import frc.robot.subsystems.CANArmSubsystem;
@@ -67,18 +66,12 @@ public class AutoL3Command extends SequentialCommandGroup {
 
             new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Up).withTimeout(2.0),
 
-            // 3. Drive to the closest L3 scoring position and score
+            // 3. Drive to the closest scoring position and score
             // Move arm to a safe travel position again
             Commands.runOnce(() -> arm.setPosition(ArmConstants.HOME_POSITION_ROTATIONS)),
             
-            Commands.defer(() -> {
-                Pose2d currentPose = localization.getPose(); // Now we are at the collection spot
-                Pose2d secondScorePose = findClosestPoseFromIds(currentPose, VisionConstants.CORAL_SCORING_TAG_IDS)
-                    .orElse(currentPose); // Default if no scoring tags found
-
-                return new DriveToPoseCommand(drive, localization, secondScorePose);
-            }, Set.of(drive, localization, arm)),
-            
+            // The AutoAlignCommand will find the best available scoring pose and drive to it.
+            // The redundant DriveToPoseCommand has been removed.
             new AutoAlignCommand(drive, localization, vision, reefState),
             new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
             new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0)
@@ -101,4 +94,3 @@ public class AutoL3Command extends SequentialCommandGroup {
             ));
     }
 }
-

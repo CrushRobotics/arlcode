@@ -6,13 +6,19 @@ package frc.robot;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
+import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
@@ -167,6 +173,21 @@ public final class Constants {
 
   public static final class VisionConstants {
     
+    /** A helper class to represent a specific scoring location on the field. */
+    public static class ScoringPose {
+        public final Pose2d pose;
+        public final int parentTagId;
+        public final String id;
+        public final ScoringLevel level;
+
+        public ScoringPose(Pose2d pose, int parentTagId, String id, ScoringLevel level) {
+            this.pose = pose;
+            this.parentTagId = parentTagId;
+            this.id = id;
+            this.level = level;
+        }
+    }
+
     /**
      * The physical transform from the center of the robot to the camera lens.
      * You MUST update these values with your robot's measurements.
@@ -186,27 +207,47 @@ public final class Constants {
             new Rotation3d(0.0, -0.27, 0.0)      
         );
 
-    /**
-     * The height of the LEFT Limelight lens from the floor in meters.
-     * NOTE: This is now part of the Transform3d above and is kept here for the distance calculation.
-     */
-    public static final double LEFT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(24); 
-    public static final double LEFT_CAMERA_PITCH_RADIANS = 0.0;
-
-    public static final double RIGHT_CAMERA_HEIGHT_METERS = Units.inchesToMeters(32); 
-    public static final double RIGHT_CAMERA_PITCH_RADIANS = 0.0;
-
+    // TODO: Measure this value on the field. It is the side-to-side distance
+    // from the center of an AprilTag to the center of a scoring peg.
+    private static final double PEG_OFFSET_METERS = Units.inchesToMeters(12.0);
 
     /**
      * A list of AprilTag IDs that are valid targets for scoring CORAL.
      * These are the tags located on the REEF structures.
      */
-    public static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(
+    private static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(
       // Red Alliance REEF Tags
-     6, 7, 8, 9, 10, 11, 12,
+      6, 7, 8, 9, 10, 11,
       // Blue Alliance REEF Tags
       17, 18, 19, 20, 21, 22
     );
+
+    /**
+     * A dynamically generated list of all possible L2 and L3 scoring locations.
+     */
+    public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream()
+      .flatMap(tagId -> {
+          var tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(tagId);
+          if (tagPose3d == null) {
+              return Stream.empty();
+          }
+          Pose2d tagPose = tagPose3d.toPose2d();
+          
+          // Create left and right horizontal offsets relative to the tag's orientation
+          Transform2d leftOffset = new Transform2d(new Translation2d(0, PEG_OFFSET_METERS), new Rotation2d());
+          Transform2d rightOffset = new Transform2d(new Translation2d(0, -PEG_OFFSET_METERS), new Rotation2d());
+
+          Pose2d leftPegPose = tagPose.transformBy(leftOffset);
+          Pose2d rightPegPose = tagPose.transformBy(rightOffset);
+
+          // Return a stream of all four scoring possibilities for this tag
+          return Stream.of(
+              new ScoringPose(leftPegPose, tagId, tagId + "_L2_LEFT", ScoringLevel.L2),
+              new ScoringPose(rightPegPose, tagId, tagId + "_L2_RIGHT", ScoringLevel.L2),
+              new ScoringPose(leftPegPose, tagId, tagId + "_L3_LEFT", ScoringLevel.L3),
+              new ScoringPose(rightPegPose, tagId, tagId + "_L3_RIGHT", ScoringLevel.L3)
+          );
+      }).collect(Collectors.toList());
   }
 
   public static final class AutoConstants {

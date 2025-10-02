@@ -4,35 +4,34 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A simple helper class to keep track of which AprilTags (representing scoring pipes)
- * have already been scored on.
+ * A helper class to keep track of which specific scoring pegs have been scored on.
  */
 public class ReefState {
 
-    private final Set<Integer> scoredTagIds = new HashSet<>();
+    // We now store a unique string for each peg, e.g., "7_LEFT"
+    private final Set<String> scoredPegIds = new HashSet<>();
 
     /**
-     * Marks a specific AprilTag ID as having been scored on.
-     * @param tagId The ID of the tag to mark.
+     * Marks a specific scoring peg as having been scored on.
+     * @param pegId The unique identifier of the peg (e.g., "7_LEFT").
      */
-    public void markScored(int tagId) {
-        scoredTagIds.add(tagId);
+    public void markScored(String pegId) {
+        scoredPegIds.add(pegId);
     }
 
     /**
-     * Checks if a specific AprilTag ID has already been scored on.
-     * @param tagId The ID of the tag to check.
-     * @return True if the tag has been marked as scored, false otherwise.
+     * Checks if a specific scoring peg has already been scored on.
+     * @param pegId The unique identifier of the peg to check.
+     * @return True if the peg has been marked as scored, false otherwise.
      */
-    public boolean isScored(int tagId) {
-        return scoredTagIds.contains(tagId);
+    public boolean isScored(String pegId) {
+        return scoredPegIds.contains(pegId);
     }
 
     /**
      * Clears all tracked scores. Useful for the start of a match.
      */
     public void clear() {
-        scoredTagIds.clear();
+        scoredPegIds.clear();
     }
 }
-
