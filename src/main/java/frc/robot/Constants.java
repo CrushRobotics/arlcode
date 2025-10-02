@@ -113,6 +113,8 @@ public final class Constants {
     
     public static final double L2_POSITION_ROTATIONS = 16.8; 
     public static final double L3_POSITION_ROTATIONS = 32.5;
+    // TODO: Tune this value for the coral loading position
+    public static final double LOADING_POSITION_ROTATIONS = 35.0; 
 
     
     public static final double MANUAL_RAISE_SPEED = 0.4;
@@ -147,14 +149,12 @@ public final class Constants {
 
     // TODO: Tune tolerance for Arm atSetpoint() check
     public static final double kPOSITION_TOLERANCE = 0.5;
-    
-  
     public static final double L2_POSITION_ROTATIONS = -14; 
     public static final double L3_POSITION_ROTATIONS = -14;
-    
-    // A new "home" position for safe travel
-    // TODO: Tune this value for the arm's home position
     public static final double HOME_POSITION_ROTATIONS = 0.0;
+
+    // TODO: Tune this value for the coral loading position
+    public static final double LOADING_POSITION_ROTATIONS = 5.0;
 
 
     

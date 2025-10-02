@@ -7,16 +7,17 @@ import frc.robot.subsystems.CANArmSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 
 /**
- * A command to move the arm and elevator to a preset scoring position (L2 or L3).
+ * A command to move the arm and elevator to a preset scoring position.
  */
 public class SetScoringPositionCommand extends Command {
 
   /**
-   * Defines the scoring levels for the preset positions.
+   * Defines the preset levels for the arm and elevator.
    */
   public enum ScoringLevel {
     L2,
-    L3
+    L3,
+    LOADING
   }
 
   private final CANArmSubsystem armSubsystem;
@@ -31,7 +32,7 @@ public class SetScoringPositionCommand extends Command {
    *
    * @param armSubsystem      The arm subsystem to control.
    * @param elevatorSubsystem The elevator subsystem to control.
-   * @param level             The target scoring level (L2 or L3).
+   * @param level             The target scoring level.
    */
   public SetScoringPositionCommand(CANArmSubsystem armSubsystem, CANElevatorSubsystem elevatorSubsystem, ScoringLevel level) {
     this.armSubsystem = armSubsystem;
@@ -52,6 +53,10 @@ public class SetScoringPositionCommand extends Command {
       case L3:
         armTarget = ArmConstants.L3_POSITION_ROTATIONS;
         elevatorTarget = ElevatorConstants.L3_POSITION_ROTATIONS;
+        break;
+      case LOADING:
+        armTarget = ArmConstants.LOADING_POSITION_ROTATIONS;
+        elevatorTarget = ElevatorConstants.LOADING_POSITION_ROTATIONS;
         break;
     }
   }
