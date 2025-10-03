@@ -99,7 +99,7 @@ public class RobotContainer {
     driverController.leftBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     driverController.rightBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
-    
+
     // --- UPDATED Auto Align Binding ---
     // The A button now triggers the new, more intelligent auto-align command
     AutoAlignCommand autoAlignCommand = new AutoAlignCommand(
@@ -117,10 +117,10 @@ public class RobotContainer {
     );
 
      // The old 'a' button binding for climber lower is now on 'x' to avoid conflict
-     driverController.x().whileTrue(new ClimberLowerCommand(climberSubsystem));
+     
      
      // Added back the binding for the LED subsystem
-     driverController.start().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
+     driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
   }
 
   public Command getAutonomousCommand() {

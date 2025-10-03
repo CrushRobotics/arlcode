@@ -111,9 +111,9 @@ public static final double kPOSITION_TOLERANCE = 0.5;
 
 
 public static final double L2_POSITION_ROTATIONS = 16.8; 
-public static final double L3_POSITION_ROTATIONS = 32.5;
+public static final double L3_POSITION_ROTATIONS = 45.02;
 // TODO: Tune this value for the coral loading position
-public static final double LOADING_POSITION_ROTATIONS = 35.0; 
+public static final double LOADING_POSITION_ROTATIONS = 50.0; 
 
 
 public static final double MANUAL_RAISE_SPEED = 0.4;
@@ -151,7 +151,7 @@ public static final double L3_POSITION_ROTATIONS = -14;
 public static final double HOME_POSITION_ROTATIONS = 0.0;
 
 // TODO: Tune this value for the coral loading position
-public static final double LOADING_POSITION_ROTATIONS = 5.0;
+public static final double LOADING_POSITION_ROTATIONS = 50.0;
 
 
 
