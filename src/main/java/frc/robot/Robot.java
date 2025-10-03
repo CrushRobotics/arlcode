@@ -10,8 +10,8 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
-// THE FIX: Import the CameraServer class
-import edu.wpi.first.cameraserver.CameraServer;
+// THE FIX: Import the HttpCamera class to handle network camera streams
+import edu.wpi.first.cscore.HttpCamera;
 
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -40,13 +40,15 @@ public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer;
   private final XboxController joystick = new XboxController(0);
 
+  // THE FIX: Assign HttpCamera objects to member variables to resolve resource leak warnings.
+  private HttpCamera limelightRightStream;
+  private HttpCamera limelightLeftStream;
+
   @Override
   public void robotInit() {
-    // THE FIX: Explicitly start a camera stream for each Limelight.
-    // This gives them unique names and tells the CameraServer to expect two cameras.
-    // The numbers 0 and 1 correspond to the USB ports on the RoboRIO (/dev/video0, /dev/video1).
-    CameraServer.startAutomaticCapture("limelight-right", 0);
-    CameraServer.startAutomaticCapture("limelight-left", 1);
+    // THE FIX: Assign the camera streams to the member variables.
+    limelightRightStream = new HttpCamera("limelight-right-stream", "http://limelight-right.local:5800/stream.mjpg");
+    limelightLeftStream = new HttpCamera("limelight-left-stream", "http://limelight-left.local:5800/stream.mjpg");
 
 
     var leftConfiguration = new TalonFXConfiguration();
@@ -148,3 +150,4 @@ public class Robot extends TimedRobot {
   }
   
 }
+
