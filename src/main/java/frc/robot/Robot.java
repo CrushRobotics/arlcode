@@ -9,6 +9,10 @@ import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+
+// THE FIX: Import the CameraServer class
+import edu.wpi.first.cameraserver.CameraServer;
+
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
@@ -19,8 +23,6 @@ import edu.wpi.first.wpilibj.XboxController;
 import frc.robot.Constants.OperatorConstants;
 
 public class Robot extends TimedRobot {
-  
-
   
   private final CANBus kCANBus = new CANBus();
 
@@ -40,6 +42,11 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
+    // THE FIX: Add this line to start the camera stream.
+    // This will find the USB camera (your Limelight Glow) and stream it
+    // over the network so the Driver Station can see it.
+    CameraServer.startAutomaticCapture();
+
     var leftConfiguration = new TalonFXConfiguration();
     var rightConfiguration = new TalonFXConfiguration();
 
