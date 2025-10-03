@@ -50,8 +50,9 @@ public class LocalizationSubsystem extends SubsystemBase {
                 driveSubsystem.getLeftDistanceMeters(),
                 driveSubsystem.getRightDistanceMeters());
 
-        // Fuse vision data from the Limelight
+        // Fuse vision data from BOTH Limelights
         addVisionMeasurement("limelight-right");
+        addVisionMeasurement("limelight-left");
 
         // Update the Field2d widget with the estimated pose
         field.setRobotPose(getPose());
@@ -63,15 +64,14 @@ public class LocalizationSubsystem extends SubsystemBase {
      * @param limelightName The network table name of the Limelight.
      */
     private void addVisionMeasurement(String limelightName) {
-        // THE FIX: We now call the corrected method in VisionSubsystem
         PoseEstimate visionPoseEstimate = visionSubsystem.getPoseEstimate(limelightName);
 
         // DEBUG: Check if we are receiving a pose estimate at all
-        SmartDashboard.putBoolean("Localization/HasPoseEstimate", visionPoseEstimate != null);
+        SmartDashboard.putBoolean("Localization/" + limelightName + "/HasPoseEstimate", visionPoseEstimate != null);
 
         if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
              // DEBUG: Confirm that we are entering the block to add the measurement
-             SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", true);
+             SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", true);
              
              // We have a valid pose from the camera. Let's add it to the estimator.
              // We can trust Limelight's timestamp for this.
@@ -80,7 +80,7 @@ public class LocalizationSubsystem extends SubsystemBase {
                 visionPoseEstimate.timestampSeconds);
         } else {
             // DEBUG: If we don't add a measurement, explicitly say so.
-            SmartDashboard.putBoolean("Localization/AddingVisionMeasurement", false);
+            SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", false);
         }
     }
 

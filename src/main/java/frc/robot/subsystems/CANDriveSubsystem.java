@@ -4,10 +4,14 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.kauailabs.navx.frc.AHRS;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.LocalizationConstants;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
@@ -24,6 +28,8 @@ public class CANDriveSubsystem extends SubsystemBase {
     private final DutyCycleOut rightOut = new DutyCycleOut(0);
 
     private final AHRS navX = new AHRS(SPI.Port.kMXP);
+
+    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(LocalizationConstants.TRACK_WIDTH_METERS);
 
     public CANDriveSubsystem() {
         var leftConfiguration = new TalonFXConfiguration();
@@ -50,14 +56,10 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public double getRightDistanceMeters() {
-        // Right side is often negative depending on motor mounting
         return rightLeader.getPosition().getValueAsDouble() * DriveConstants.ROTATIONS_TO_METERS;
     }
 
     public Rotation2d getRotation2d() {
-        // THE FIX: The NavX getAngle() method is counter-clockwise positive,
-        // which is the standard convention for WPILib. Removing the negation
-        // ensures the gyro reading is consistent with the rest of the code.
         return Rotation2d.fromDegrees(navX.getAngle());
     }
 
@@ -65,12 +67,26 @@ public class CANDriveSubsystem extends SubsystemBase {
         return getRotation2d().getDegrees();
     }
     
-    /** Gets the current speed of the robot's wheels. Useful for the cost function. */
     public double getForwardVelocityMetersPerSec() {
         double leftRPS = leftLeader.getVelocity().getValueAsDouble();
         double rightRPS = rightLeader.getVelocity().getValueAsDouble();
-        // Average the two sides and convert from rotations/sec to meters/sec
         return ((leftRPS + rightRPS) / 2.0) * DriveConstants.ROTATIONS_TO_METERS;
+    }
+
+    public DifferentialDriveWheelSpeeds getWheelSpeeds() {
+        return new DifferentialDriveWheelSpeeds(
+            (leftLeader.getVelocity().getValueAsDouble() * DriveConstants.ROTATIONS_TO_METERS),
+            (rightLeader.getVelocity().getValueAsDouble() * DriveConstants.ROTATIONS_TO_METERS)
+        );
+    }
+
+    public ChassisSpeeds getChassisSpeeds() {
+        return kinematics.toChassisSpeeds(getWheelSpeeds());
+    }
+
+    public void setChassisSpeeds(ChassisSpeeds speeds) {
+        DifferentialDriveWheelSpeeds wheelSpeeds = kinematics.toWheelSpeeds(speeds);
+        drive(wheelSpeeds.leftMetersPerSecond, wheelSpeeds.rightMetersPerSecond, true);
     }
 
 
@@ -82,9 +98,21 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public void drive(double fwd, double rot) {
-        // Positive 'rot' value results in a counter-clockwise turn.
-        leftOut.Output = (fwd + rot) * 0.65;
-        rightOut.Output = (fwd - rot) * 0.65;
+        drive(fwd + rot, fwd - rot, false);
+    }
+
+    private void drive(double left, double right, boolean isVelocity) {
+        double leftOutput = left;
+        double rightOutput = right;
+
+        if (!isVelocity) {
+            // Scale down joystick input for better control
+            leftOutput *= 0.65;
+            rightOutput *= 0.65;
+        }
+
+        leftOut.Output = leftOutput;
+        rightOut.Output = rightOutput;
 
         leftLeader.setControl(leftOut);
         rightLeader.setControl(rightOut);

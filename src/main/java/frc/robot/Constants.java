@@ -44,6 +44,15 @@ public static final double D = 0.0;
 public static final double kP_AUTO_ALIGN = 0.05; 
 }
 
+public static class VelocityPIDConstants {
+    // These gains are for the TalonFX's internal velocity PID when following paths.
+    // Tune these to achieve accurate path following. Start with kP and add kD if needed.
+    public static final double kP = 0.1;
+    public static final double kI = 0.0;
+    public static final double kD = 0.0;
+}
+
+
 public static class PIDElevatorConstants {
 public static final double P = 0.1;
 public static final double I = 0.0;
@@ -63,7 +72,12 @@ public static final int LEFT_FOLLOWER_ID = 9;
 public static final int RIGHT_LEADER_ID = 7;
 public static final int RIGHT_FOLLOWER_ID = 6;
 
-public static final double ROTATIONS_TO_METERS = 0.0494;
+// Accurately measure these values for your robot!
+public static final double DRIVE_GEARING = 8.45; // Example: 8.45:1 gear ratio
+public static final double WHEEL_RADIUS_METERS = Units.inchesToMeters(3.0); // Example: 3 inch radius wheels
+
+// This is calculated from gearing and wheel radius, don't change this
+public static final double ROTATIONS_TO_METERS = (2 * Math.PI * WHEEL_RADIUS_METERS) / DRIVE_GEARING;
 }
 
 public static final class LocalizationConstants {
@@ -306,3 +320,4 @@ public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
 );
 }
 }
+

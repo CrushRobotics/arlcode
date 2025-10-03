@@ -21,32 +21,42 @@ public class VisionSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // THE FIX: Re-enable sending robot orientation to the Limelight.
         // This is required for MegaTag2 to work with an external IMU (like the NavX).
         double heading = driveSubsystem.getHeading();
+        // Send robot orientation to BOTH Limelights
         LimelightHelpers.SetRobotOrientation("limelight-right", heading, 0, 0, 0, 0, 0);
+        LimelightHelpers.SetRobotOrientation("limelight-left", heading, 0, 0, 0, 0, 0);
 
-        // --- DEBUGGING OUTPUTS ---
-        
+        // --- DEBUGGING OUTPUTS for both cameras ---
+        updateSmartDashboard("limelight-right");
+        updateSmartDashboard("limelight-left");
+    }
+
+    /**
+     * Helper method to post vision data for a given Limelight to the SmartDashboard.
+     * @param limelightName The network table name of the limelight.
+     */
+    private void updateSmartDashboard(String limelightName) {
         // Get the latest pose estimate to display its data
-        PoseEstimate poseEstimate = getPoseEstimate("limelight-right");
+        PoseEstimate poseEstimate = getPoseEstimate(limelightName);
 
         // Check if the Limelight has any valid target
-        boolean hasTarget = LimelightHelpers.getTV("limelight-right");
-        SmartDashboard.putBoolean("Vision/HasTarget", hasTarget);
+        boolean hasTarget = LimelightHelpers.getTV(limelightName);
+        SmartDashboard.putBoolean("Vision/" + limelightName + "/HasTarget", hasTarget);
 
-        if (hasTarget && poseEstimate != null) {
+        if (hasTarget && poseEstimate != null && LimelightHelpers.validPoseEstimate(poseEstimate)) {
             // We have a valid pose from the camera
-            SmartDashboard.putNumber("Vision/PoseX", poseEstimate.pose.getX());
-            SmartDashboard.putNumber("Vision/PoseY", poseEstimate.pose.getY());
-            SmartDashboard.putNumber("Vision/PoseRotation", poseEstimate.pose.getRotation().getDegrees());
-            SmartDashboard.putNumber("Vision/TagCount", poseEstimate.tagCount);
-            SmartDashboard.putNumber("Vision/Latency", poseEstimate.latency);
+            SmartDashboard.putNumber("Vision/" + limelightName + "/PoseX", poseEstimate.pose.getX());
+            SmartDashboard.putNumber("Vision/" + limelightName + "/PoseY", poseEstimate.pose.getY());
+            SmartDashboard.putNumber("Vision/" + limelightName + "/PoseRotation", poseEstimate.pose.getRotation().getDegrees());
+            SmartDashboard.putNumber("Vision/" + limelightName + "/TagCount", poseEstimate.tagCount);
+            SmartDashboard.putNumber("Vision/" + limelightName + "/Latency", poseEstimate.latency);
         } else {
             // No valid target, set default values
-            SmartDashboard.putNumber("Vision/TagCount", 0);
+            SmartDashboard.putNumber("Vision/" + limelightName + "/TagCount", 0);
         }
     }
+
 
     /**
      * Gets the latest MegaTag2 pose estimate from a specified Limelight.
@@ -55,7 +65,6 @@ public class VisionSubsystem extends SubsystemBase {
      */
     public PoseEstimate getPoseEstimate(String limelightName) {
         // We use the wpiBlue coordinate system by default.
-        // THE FIX: We are now calling the MegaTag2-specific helper function again.
         return LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
     }
 
@@ -68,4 +77,3 @@ public class VisionSubsystem extends SubsystemBase {
         return LimelightHelpers.getBotPose2d_wpiBlue(limelightName);
     }
 }
-
