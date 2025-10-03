@@ -6,12 +6,10 @@ package frc.robot;
 
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.net.PortForwarder;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-
-// THE FIX: Import the HttpCamera class to handle network camera streams
-import edu.wpi.first.cscore.HttpCamera;
 
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -40,18 +38,21 @@ public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer;
   private final XboxController joystick = new XboxController(0);
 
-  // Assign HttpCamera objects to member variables to resolve resource leak warnings.
-  private HttpCamera limelightRightStream;
-  private HttpCamera limelightLeftStream;
-
   @Override
   public void robotInit() {
-    // This code sets up network camera streams. If a stream is failing,
-    // ensure the camera's hostname and network settings are correct in the
-    // Limelight's web interface.
-    limelightRightStream = new HttpCamera("limelight-right-stream", "http://limelight-right.local:5800/stream.mjpg");
-    // THE FIX: Updated the port for the left limelight to match the user-provided address.
-    limelightLeftStream = new HttpCamera("limelight-left-stream", "http://limelight-left.local:5801/stream.mjpg");
+    // THE FIX: Use PortForwarder to make camera streams accessible through the RoboRIO's IP address.
+    // This is an alternative to using HttpCamera and CameraServer.
+
+    // Forward RoboRIO port 5800 to limelight-right's stream port 5800
+    PortForwarder.add(5800, "limelight-right.local", 5800);
+
+    // Forward RoboRIO port 5801 to limelight-left's stream port 5801
+    PortForwarder.add(5801, "limelight-left.local", 5801);
+
+    // To view these streams, connect a browser or dashboard to:
+    // http://roboRIO-1011-FRC.local:5800 (for the right camera)
+    // http://roboRIO-1011-FRC.local:5801 (for the left camera)
+    // Or use the RoboRIO's IP address, e.g., http://10.10.11.2:5800
 
 
     var leftConfiguration = new TalonFXConfiguration();
