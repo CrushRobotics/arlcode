@@ -42,10 +42,12 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // THE FIX: Add this line to start the camera stream.
-    // This will find the USB camera (your Limelight Glow) and stream it
-    // over the network so the Driver Station can see it.
-    CameraServer.startAutomaticCapture();
+    // THE FIX: Explicitly start a camera stream for each Limelight.
+    // This gives them unique names and tells the CameraServer to expect two cameras.
+    // The numbers 0 and 1 correspond to the USB ports on the RoboRIO (/dev/video0, /dev/video1).
+    CameraServer.startAutomaticCapture("limelight-right", 0);
+    CameraServer.startAutomaticCapture("limelight-left", 1);
+
 
     var leftConfiguration = new TalonFXConfiguration();
     var rightConfiguration = new TalonFXConfiguration();
