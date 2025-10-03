@@ -320,4 +320,3 @@ public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
 );
 }
 }
-

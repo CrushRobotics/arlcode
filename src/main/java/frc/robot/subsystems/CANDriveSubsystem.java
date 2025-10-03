@@ -60,7 +60,8 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     public Rotation2d getRotation2d() {
-        return Rotation2d.fromDegrees(navX.getAngle());
+        // THE FIX: Negate the NavX angle to conform to WPILib's CCW-positive convention.
+        return Rotation2d.fromDegrees(-navX.getAngle());
     }
 
     public double getHeading() {
@@ -97,8 +98,15 @@ public class CANDriveSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Robot Heading (deg)", getHeading());
     }
 
+    /**
+     * Drives the robot using arcade-style controls.
+     * @param fwd The forward/backward speed (-1 to 1).
+     * @param rot The rotation speed, where positive is counter-clockwise (-1 to 1).
+     */
     public void drive(double fwd, double rot) {
-        drive(fwd + rot, fwd - rot, false);
+        // THE FIX: Correct the arcade drive logic for a CCW-positive system.
+        // A positive 'rot' should result in a counter-clockwise turn.
+        drive(fwd - rot, fwd + rot, false);
     }
 
     private void drive(double left, double right, boolean isVelocity) {
@@ -118,4 +126,3 @@ public class CANDriveSubsystem extends SubsystemBase {
         rightLeader.setControl(rightOut);
     }
 }
-

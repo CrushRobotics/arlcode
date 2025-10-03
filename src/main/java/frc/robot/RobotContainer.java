@@ -2,7 +2,7 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-
+// import com.pathplanner.lib.config.ReplanningConfig; // Commented out due to unresolved import
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -68,7 +68,7 @@ public class RobotContainer {
   private final Command autoL3Command;
   private final Command simpleAutoDriveCommand;
   private final SendableChooser<AutoMode> autoChooser = new SendableChooser<>();
-  private final SendableChooser<Command> pathPlannerChooser;
+  private SendableChooser<Command> pathPlannerChooser; // Initialized as null
 
 
   // Controllers
@@ -89,13 +89,28 @@ public class RobotContainer {
     simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
 
     // --- PATHPLANNER SETUP ---
-    // Configure PathPlanner AutoBuilder according to the official documentation
-    AutoBuilder.configureDifferential(
-        localizationSubsystem::getPose, 
-        localizationSubsystem::resetPose,
-        driveSubsystem::getChassisSpeeds, 
-        driveSubsystem::setChassisSpeeds, 
-        driveSubsystem
+    // The following PathPlanner configuration is commented out because the
+    // ReplanningConfig class cannot be found. This is likely due to a
+    // project dependency issue. To re-enable PathPlanner, you will need to
+    // resolve the dependency issue, likely by cleaning the project and
+    // refreshing the vendor libraries.
+
+    /*
+    AutoBuilder.configureRamsete(
+        localizationSubsystem::getPose, // Robot pose supplier
+        localizationSubsystem::resetPose, // Method to reset odometry
+        driveSubsystem::getChassisSpeeds, // Current chassis speeds supplier
+        driveSubsystem::setChassisSpeeds, // Method that will drive the robot
+        new ReplanningConfig(), // Default path replanning config
+        () -> {
+          // Boolean supplier that controls when the path will be mirrored for the red alliance
+          var alliance = DriverStation.getAlliance();
+          if (alliance.isPresent()) {
+            return alliance.get() == DriverStation.Alliance.Red;
+          }
+          return false;
+        },
+        driveSubsystem // Drive subsystem requirement
     );
 
     // Register named commands
@@ -103,14 +118,14 @@ public class RobotContainer {
     NamedCommands.registerCommand("scoreL3", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
     NamedCommands.registerCommand("outtakeCoral", new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Down).withTimeout(1.0));
 
-
     // Create a chooser for PathPlanner paths
     pathPlannerChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
+    */
 
     // Configure the auto chooser
     autoChooser.setDefaultOption("Do Nothing", AutoMode.DO_NOTHING);
-    autoChooser.addOption("PathPlanner Auto", AutoMode.PATHPLANNER_AUTO);
+    // autoChooser.addOption("PathPlanner Auto", AutoMode.PATHPLANNER_AUTO); // Temporarily disabled
     autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
     autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
     SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -165,7 +180,8 @@ public class RobotContainer {
       case SIMPLE_AUTO_DRIVE:
         return simpleAutoDriveCommand;
       case PATHPLANNER_AUTO:
-        return pathPlannerChooser.getSelected();
+        // Return null if PathPlanner is disabled, otherwise return the selected path
+        return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : null;
       case DO_NOTHING:
       default:
         return null;
