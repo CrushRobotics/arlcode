@@ -4,9 +4,10 @@
 
 package frc.robot;
 
+import edu.wpi.first.cscore.HttpCamera;
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
-import edu.wpi.first.net.PortForwarder;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -40,19 +41,19 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // THE FIX: Use PortForwarder to make camera streams accessible through the RoboRIO's IP address.
-    // This is an alternative to using HttpCamera and CameraServer.
+    // THE FIX: Use a more robust CameraServer implementation.
+    // This creates HttpCamera objects for each Limelight and then explicitly
+    // tells the CameraServer to start capturing and streaming them.
 
-    // Forward RoboRIO port 5800 to limelight-right's stream port 5800
-    PortForwarder.add(5800, "limelight-right.local", 5800);
+    // Create a camera object for the right Limelight
+    HttpCamera limelightRight = new HttpCamera("limelight-right", "http://limelight-right.local:5800/stream.mjpg");
+    // Tell the CameraServer to start streaming this camera
+    CameraServer.startAutomaticCapture(limelightRight);
 
-    // Forward RoboRIO port 5801 to limelight-left's stream port 5801
-    PortForwarder.add(5801, "limelight-left.local", 5801);
-
-    // To view these streams, connect a browser or dashboard to:
-    // http://roboRIO-1011-FRC.local:5800 (for the right camera)
-    // http://roboRIO-1011-FRC.local:5801 (for the left camera)
-    // Or use the RoboRIO's IP address, e.g., http://10.10.11.2:5800
+    // Create a camera object for the left Limelight
+    HttpCamera limelightLeft = new HttpCamera("limelight-left", "http://limelight-left.local:5801/stream.mjpg");
+    // Tell the CameraServer to start streaming this camera
+    CameraServer.startAutomaticCapture(limelightLeft);
 
 
     var leftConfiguration = new TalonFXConfiguration();
