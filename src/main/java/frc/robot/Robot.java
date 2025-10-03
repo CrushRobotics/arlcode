@@ -40,15 +40,18 @@ public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer;
   private final XboxController joystick = new XboxController(0);
 
-  // THE FIX: Assign HttpCamera objects to member variables to resolve resource leak warnings.
+  // Assign HttpCamera objects to member variables to resolve resource leak warnings.
   private HttpCamera limelightRightStream;
   private HttpCamera limelightLeftStream;
 
   @Override
   public void robotInit() {
-    // THE FIX: Assign the camera streams to the member variables.
+    // This code sets up network camera streams. If a stream is failing,
+    // ensure the camera's hostname and network settings are correct in the
+    // Limelight's web interface.
     limelightRightStream = new HttpCamera("limelight-right-stream", "http://limelight-right.local:5800/stream.mjpg");
-    limelightLeftStream = new HttpCamera("limelight-left-stream", "http://limelight-left.local:5800/stream.mjpg");
+    // THE FIX: Updated the port for the left limelight to match the user-provided address.
+    limelightLeftStream = new HttpCamera("limelight-left-stream", "http://limelight-left.local:5801/stream.mjpg");
 
 
     var leftConfiguration = new TalonFXConfiguration();
