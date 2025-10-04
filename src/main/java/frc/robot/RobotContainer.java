@@ -2,7 +2,8 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-// import com.pathplanner.lib.config.ReplanningConfig; // Commented out due to unresolved import
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPLTVController;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -68,7 +69,7 @@ public class RobotContainer {
   private final Command autoL3Command;
   private final Command simpleAutoDriveCommand;
   private final SendableChooser<AutoMode> autoChooser = new SendableChooser<>();
-  private SendableChooser<Command> pathPlannerChooser; // Initialized as null
+  private SendableChooser<Command> pathPlannerChooser; 
 
 
   // Controllers
@@ -89,19 +90,22 @@ public class RobotContainer {
     simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
 
     // --- PATHPLANNER SETUP ---
-    // The following PathPlanner configuration is commented out because the
-    // ReplanningConfig class cannot be found. This is likely due to a
-    // project dependency issue. To re-enable PathPlanner, you will need to
-    // resolve the dependency issue, likely by cleaning the project and
-    // refreshing the vendor libraries.
-
-    /*
-    AutoBuilder.configureRamsete(
+    RobotConfig robotConfig = null;
+    try {
+      // Load the config from the GUI settings file.
+      robotConfig = RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+        System.err.println("ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following may not work correctly.");
+        e.printStackTrace();
+    }
+    
+    AutoBuilder.configure(
         localizationSubsystem::getPose, // Robot pose supplier
         localizationSubsystem::resetPose, // Method to reset odometry
-        driveSubsystem::getChassisSpeeds, // Current chassis speeds supplier
+        driveSubsystem::getChassisSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
         driveSubsystem::setChassisSpeeds, // Method that will drive the robot
-        new ReplanningConfig(), // Default path replanning config
+        new PPLTVController(0.02), // PPLTVController is the built in path following controller for differential drive trains
+        robotConfig, // The robot configuration
         () -> {
           // Boolean supplier that controls when the path will be mirrored for the red alliance
           var alliance = DriverStation.getAlliance();
@@ -110,22 +114,35 @@ public class RobotContainer {
           }
           return false;
         },
-        driveSubsystem // Drive subsystem requirement
+        driveSubsystem // Reference to this subsystem to set requirements
     );
 
-    // Register named commands
-    NamedCommands.registerCommand("exampleCommand", new InstantCommand(() -> System.out.println("Ran example command!")));
+    // Register all preset commands for use in PathPlanner
     NamedCommands.registerCommand("scoreL3", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
+    NamedCommands.registerCommand("scoreL2", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L2));
+    NamedCommands.registerCommand("scoreLoading", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.LOADING));
     NamedCommands.registerCommand("outtakeCoral", new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Down).withTimeout(1.0));
+    NamedCommands.registerCommand("intakeCoral", new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Up).withTimeout(1.0));
+    NamedCommands.registerCommand("elevatorUp", new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
+    NamedCommands.registerCommand("elevatorDown", new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
+    NamedCommands.registerCommand("armUp", new MoveArmCommand(armSubsystem, ArmDirection.Up));
+    NamedCommands.registerCommand("armDown", new MoveArmCommand(armSubsystem, ArmDirection.Down));
+    NamedCommands.registerCommand("algaeDown", new AlgaeCommand(algaeSubsystem, AlgaeDirection.Down, algaeIntakeSubsystem));
+    NamedCommands.registerCommand("algaeUp", new AlgaeCommand(algaeSubsystem, AlgaeDirection.Up, algaeIntakeSubsystem));
+    NamedCommands.registerCommand("intakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
+    NamedCommands.registerCommand("outtakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
+    NamedCommands.registerCommand("climb", new ClimberClimbCommand(climberSubsystem));
+    NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState));
+    NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState).getMarkScoredCommand());
+    NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
 
     // Create a chooser for PathPlanner paths
     pathPlannerChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
-    */
 
     // Configure the auto chooser
     autoChooser.setDefaultOption("Do Nothing", AutoMode.DO_NOTHING);
-    // autoChooser.addOption("PathPlanner Auto", AutoMode.PATHPLANNER_AUTO); // Temporarily disabled
+    autoChooser.addOption("PathPlanner Auto", AutoMode.PATHPLANNER_AUTO);
     autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
     autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
     SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -180,7 +197,6 @@ public class RobotContainer {
       case SIMPLE_AUTO_DRIVE:
         return simpleAutoDriveCommand;
       case PATHPLANNER_AUTO:
-        // Return null if PathPlanner is disabled, otherwise return the selected path
         return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : null;
       case DO_NOTHING:
       default:
