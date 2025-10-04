@@ -1,9 +1,11 @@
 package frc.robot.commands;
 
-import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -27,8 +29,8 @@ public class AutoAlignCommand extends Command {
     private final LocalizationSubsystem localizationSubsystem;
     private final ReefState reefState;
 
-    private final PIDController turnController;
-    private final PIDController driveController;
+    private final ProfiledPIDController turnController;
+    private final ProfiledPIDController driveController;
 
     private Optional<TargetCost> bestTarget = Optional.empty();
 
@@ -37,14 +39,24 @@ public class AutoAlignCommand extends Command {
         this.localizationSubsystem = localization;
         this.reefState = reef;
 
-        turnController = new PIDController(AutoAlignConstants.kP_TURN, AutoAlignConstants.kI_TURN, AutoAlignConstants.kD_TURN);
-        turnController.enableContinuousInput(-180, 180); // Angles are circular
+        turnController = new ProfiledPIDController(
+            AutoAlignConstants.kP_TURN, 
+            AutoAlignConstants.kI_TURN, 
+            AutoAlignConstants.kD_TURN,
+            new TrapezoidProfile.Constraints(360, 360) // Max angular velocity and acceleration in deg/s
+        );
+        turnController.enableContinuousInput(-180, 180);
         turnController.setTolerance(AutoAlignConstants.TURN_TOLERANCE_DEGREES);
 
-        driveController = new PIDController(AutoAlignConstants.kP_DRIVE, AutoAlignConstants.kI_DRIVE, AutoAlignConstants.kD_DRIVE);
+        driveController = new ProfiledPIDController(
+            AutoAlignConstants.kP_DRIVE, 
+            AutoAlignConstants.kI_DRIVE, 
+            AutoAlignConstants.kD_DRIVE,
+            new TrapezoidProfile.Constraints(1.0, 1.0) // Max velocity and acceleration in m/s
+        );
         driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
         
-        addRequirements(drive, localization); // Vision is read-only, no need to require
+        addRequirements(drive, localization);
     }
 
     @Override
@@ -52,6 +64,9 @@ public class AutoAlignCommand extends Command {
         bestTarget = findBestTarget();
         if (bestTarget.isPresent()) {
             System.out.println("Auto Align Initialized: Targeting " + bestTarget.get().scoringPose.id);
+            // Reset controllers to current state
+            driveController.reset(localizationSubsystem.getPose().getTranslation().getDistance(bestTarget.get().scoringPose.pose.getTranslation()));
+            turnController.reset(localizationSubsystem.getPose().getRotation().getDegrees());
         } else {
             System.out.println("Auto Align Initialized: No valid targets found.");
         }
@@ -64,34 +79,42 @@ public class AutoAlignCommand extends Command {
             return;
         }
 
+        // If we are at the setpoint, stop moving to prevent oscillation.
+        if (driveController.atSetpoint() && turnController.atSetpoint()) {
+            driveSubsystem.drive(0, 0);
+            return;
+        }
+
         Pose2d currentPose = localizationSubsystem.getPose();
         Pose2d targetPose = bestTarget.get().scoringPose.pose;
         
-        // --- Rotation Control ---
-        // We want to face the target.
+        // --- Calculations for both controllers ---
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
+        double currentDistance = translationToTarget.getNorm();
         Rotation2d desiredRotation = translationToTarget.getAngle();
-        
+
+        // --- Rotation Control ---
         double rotationSpeed = turnController.calculate(
             currentPose.getRotation().getDegrees(),
             desiredRotation.getDegrees()
         );
-        
-        // --- Forward/Backward Control ---
-        // We want to be a certain distance away from the target.
-        double currentDistance = translationToTarget.getNorm();
-        
-        // THE FIX: The output of the PID controller for driving was inverted.
-        // A positive error (too close) was causing forward motion, and a negative
-        // error (too far) was causing backward motion. Negating the result
-        // corrects this behavior.
+
+        // --- Translation Control ---
         double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
 
-        // Apply a max speed
-        driveSpeed = Math.max(-0.5, Math.min(0.5, driveSpeed));
-        rotationSpeed = Math.max(-0.5, Math.min(0.5, rotationSpeed));
+        // Scale drive speed by how much we're facing the target. This prevents driving sideways.
+        double angleError = currentPose.getRotation().minus(desiredRotation).getRadians();
+        double driveScale = Math.cos(angleError);
+        // Only drive when generally facing the target
+        driveScale = Math.max(0, driveScale);
 
-        driveSubsystem.drive(driveSpeed, rotationSpeed);
+        double finalDriveSpeed = driveSpeed * driveScale;
+
+        // Apply max speed limits
+        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.5, 0.5);
+        rotationSpeed = MathUtil.clamp(rotationSpeed, -0.5, 0.5);
+
+        driveSubsystem.drive(finalDriveSpeed, rotationSpeed);
 
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
@@ -103,7 +126,6 @@ public class AutoAlignCommand extends Command {
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
 
-        // Iterate through all possible scoring poses, not just tag IDs
         for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
             AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
                 .ifPresent(potentialTargets::add);
@@ -113,15 +135,14 @@ public class AutoAlignCommand extends Command {
             return Optional.empty();
         }
 
-        // The best target is the one with the lowest cost
         Collections.sort(potentialTargets);
         return Optional.of(potentialTargets.get(0));
     }
 
     @Override
     public boolean isFinished() {
-        // The command is finished if we are at both the distance and angle setpoints.
-        return driveController.atSetpoint() && turnController.atSetpoint();
+        // This command runs as long as the button is held, so it never "finishes" on its own.
+        return false;
     }
 
     @Override
@@ -129,12 +150,7 @@ public class AutoAlignCommand extends Command {
         driveSubsystem.drive(0, 0);
     }
 
-    /**
-     * A helper method to create an InstantCommand that marks the current best target as scored.
-     * @return A command that can be bound to a button.
-     */
     public Command getMarkScoredCommand() {
-        // ReefState is not a subsystem, so it should not be passed as a requirement.
         return new InstantCommand(() -> {
             Optional<TargetCost> target = findBestTarget();
             target.ifPresent(t -> {
