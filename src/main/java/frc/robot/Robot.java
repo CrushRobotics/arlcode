@@ -41,7 +41,6 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // THE FIX: Use a more robust CameraServer implementation.
     // This creates HttpCamera objects for each Limelight and then explicitly
     // tells the CameraServer to start capturing and streaming them.
 
@@ -147,12 +146,14 @@ public class Robot extends TimedRobot {
 
   @Override
   public void simulationInit() {
+    // Any specific initialization for simulation can go here.
+    m_robotContainer.simulationInit();
   }
 
   @Override
   public void simulationPeriodic() {
-    
+    // This method is called approximately every 20ms in simulation.
+    m_robotContainer.simulationPeriodic();
   }
   
 }
-

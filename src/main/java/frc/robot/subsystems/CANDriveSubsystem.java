@@ -3,15 +3,22 @@ package frc.robot.subsystems;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.kauailabs.navx.frc.AHRS;
 
+import edu.wpi.first.hal.SimDouble;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.SPI;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
+import edu.wpi.first.wpilibj.simulation.RoboRioSim;
+import edu.wpi.first.wpilibj.simulation.SimDeviceSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.LocalizationConstants;
+import frc.robot.Robot;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
@@ -30,6 +37,11 @@ public class CANDriveSubsystem extends SubsystemBase {
     private final AHRS navX = new AHRS(SPI.Port.kMXP);
 
     private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(LocalizationConstants.TRACK_WIDTH_METERS);
+    
+    // --- SIMULATION ---
+    private DifferentialDrivetrainSim driveSim;
+    private SimDouble navXSimAngle;
+
 
     public CANDriveSubsystem() {
         var leftConfiguration = new TalonFXConfiguration();
@@ -49,6 +61,23 @@ public class CANDriveSubsystem extends SubsystemBase {
         leftLeader.setPosition(0);
         rightLeader.setPosition(0);
         navX.reset();
+
+        if (Robot.isSimulation()) {
+            // Initialize simulation objects
+            driveSim = new DifferentialDrivetrainSim(
+                DCMotor.getFalcon500(2), // 2 Falcon 500s per side
+                DriveConstants.DRIVE_GEARING,
+                7.5, // MOI kg*m^2 (adjust as needed)
+                60.0, // Mass kg (adjust as needed)
+                DriveConstants.WHEEL_RADIUS_METERS,
+                LocalizationConstants.TRACK_WIDTH_METERS,
+                null // Standard deviations, can be null
+            );
+
+            // Simulate the NavX
+            SimDeviceSim navXSimDevice = new SimDeviceSim("navX-Sensor[0]");
+            navXSimAngle = navXSimDevice.getDouble("Angle");
+        }
     }
     
     public double getLeftDistanceMeters() {
@@ -124,5 +153,34 @@ public class CANDriveSubsystem extends SubsystemBase {
 
         leftLeader.setControl(leftOut);
         rightLeader.setControl(rightOut);
+    }
+
+    @Override
+    public void simulationPeriodic() {
+        // Get motor outputs from the simulated TalonFXs
+        double leftOutput = leftLeader.getSimState().getMotorVoltage();
+        double rightOutput = rightLeader.getSimState().getMotorVoltage();
+
+        // Set simulator inputs
+        driveSim.setInputs(leftOutput, rightOutput);
+
+        // Update simulator
+        driveSim.update(0.02);
+
+        // Update simulated sensor readings for the TalonFXs
+        leftLeader.getSimState().setRawRotorPosition(driveSim.getLeftPositionMeters() / DriveConstants.ROTATIONS_TO_METERS);
+        leftLeader.getSimState().setRotorVelocity(driveSim.getLeftVelocityMetersPerSecond() / DriveConstants.ROTATIONS_TO_METERS);
+
+        rightLeader.getSimState().setRawRotorPosition(driveSim.getRightPositionMeters() / DriveConstants.ROTATIONS_TO_METERS);
+        rightLeader.getSimState().setRotorVelocity(driveSim.getRightVelocityMetersPerSecond() / DriveConstants.ROTATIONS_TO_METERS);
+
+        // The drive sim getHeading is CCW positive, but the real NavX is CW positive.
+        // The getRotation2d() method negates the real NavX angle to make it CCW positive.
+        // So, we must set the simulated NavX angle to the negative of the sim heading.
+        if (navXSimAngle != null) {
+            navXSimAngle.set(-driveSim.getHeading().getDegrees());
+        }
+
+        RoboRioSim.setVInVoltage(RobotController.getBatteryVoltage());
     }
 }

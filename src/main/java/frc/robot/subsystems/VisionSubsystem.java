@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
@@ -14,6 +15,9 @@ public class VisionSubsystem extends SubsystemBase {
     
     private final CANDriveSubsystem driveSubsystem;
 
+    // --- SIMULATION ---
+    private PoseEstimate simulatedPoseEstimate = null;
+
     // We pass in the drive subsystem to get the robot's orientation (from the NavX)
     public VisionSubsystem(CANDriveSubsystem drive) {
         this.driveSubsystem = drive;
@@ -21,6 +25,11 @@ public class VisionSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        // In simulation, we don't interact with the real hardware
+        if (RobotBase.isSimulation()) {
+            return;
+        }
+
         // This is required for MegaTag2 to work with an external IMU (like the NavX).
         double heading = driveSubsystem.getHeading();
         // Send robot orientation to BOTH Limelights
@@ -57,16 +66,28 @@ public class VisionSubsystem extends SubsystemBase {
         }
     }
 
-
     /**
      * Gets the latest MegaTag2 pose estimate from a specified Limelight.
+     * In simulation, this returns a simulated pose.
      * @param limelightName The name of the Limelight camera.
      * @return A PoseEstimate object, which may or may not contain a valid pose.
      */
     public PoseEstimate getPoseEstimate(String limelightName) {
+        if (RobotBase.isSimulation()) {
+            return this.simulatedPoseEstimate;
+        }
         // We use the wpiBlue coordinate system by default.
         return LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
     }
+
+    /**
+     * Updates the vision system with a simulated pose estimate. This is only used in simulation.
+     * @param estimate The simulated PoseEstimate. Can be null to simulate no targets.
+     */
+    public void updateSimulatedVisionData(PoseEstimate estimate) {
+        this.simulatedPoseEstimate = estimate;
+    }
+
 
     /**
      * Gets the 2D pose from a specific limelight.

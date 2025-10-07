@@ -4,13 +4,21 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPLTVController;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.LimelightHelpers.PoseEstimate;
+import frc.robot.LimelightHelpers.RawFiducial;
 import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
@@ -38,6 +46,9 @@ import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
+
+import java.util.Map;
+import java.util.Optional;
 
 public class RobotContainer {
   // Enum for autonomous modes
@@ -203,5 +214,70 @@ public class RobotContainer {
         return null;
     }
   }
-}
 
+  // --- SIMULATION METHODS ---
+
+  /**
+   * This method is called once when simulation starts.
+   */
+  public void simulationInit() {
+      // You can reset the robot to a specific pose at the start of simulation
+      localizationSubsystem.resetPose(new Pose2d(2.0, 4.0, new Rotation2d(0)));
+  }
+
+  /**
+   * This method is called periodically during simulation.
+   */
+  public void simulationPeriodic() {
+      // Update the simulated drivetrain
+      driveSubsystem.simulationPeriodic();
+      
+      // --- Simulate Vision Data ---
+      Pose2d currentPose = localizationSubsystem.getPose();
+      Optional<Pose3d> closestTagPose = Optional.empty();
+      int closestTagId = -1;
+      double minDistance = Double.MAX_VALUE;
+
+      // Find the closest AprilTag to the robot
+      for (Map.Entry<Integer, Pose3d> entry : FieldConstants.APRIL_TAG_FIELD_LAYOUT.entrySet()) {
+          double distance = entry.getValue().toPose2d().getTranslation().getDistance(currentPose.getTranslation());
+          if (distance < minDistance) {
+              minDistance = distance;
+              closestTagPose = Optional.of(entry.getValue());
+              closestTagId = entry.getKey();
+          }
+      }
+
+      PoseEstimate estimate = null;
+      // If a tag is found and within a reasonable distance...
+      if (closestTagPose.isPresent() && minDistance < 5.0) { // Simulate seeing tags within 5 meters
+          Pose2d tagPose2d = closestTagPose.get().toPose2d();
+          
+          // Check if the robot is generally facing the tag (e.g., within a 120-degree FOV)
+          double angleToTag = Math.atan2(tagPose2d.getY() - currentPose.getY(), tagPose2d.getX() - currentPose.getX());
+          double angleDifference = Math.abs(currentPose.getRotation().getRadians() - angleToTag);
+          
+          if (Math.abs(angleDifference) < Units.degreesToRadians(60)) {
+               // Create a "perfect" pose estimate based on the robot's actual simulated pose
+               // In a real scenario, this would come from the Limelight with some noise.
+              RawFiducial[] rawFiducials = new RawFiducial[1];
+              rawFiducials[0] = new RawFiducial(closestTagId, 0, 0, 0, minDistance, minDistance, 0.1);
+
+              estimate = new PoseEstimate(
+                  currentPose,
+                  Timer.getFPGATimestamp() - 0.03, // Simulate 30ms latency
+                  30.0,
+                  1,
+                  0,
+                  minDistance,
+                  0,
+                  rawFiducials,
+                  true
+              );
+          }
+      }
+      
+      // Update the vision subsystem with the simulated data (or null if no target is seen)
+      visionSubsystem.updateSimulatedVisionData(estimate);
+  }
+}
