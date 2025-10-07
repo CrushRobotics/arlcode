@@ -101,32 +101,38 @@ public class RobotContainer {
     simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
 
     // --- PATHPLANNER SETUP ---
-    RobotConfig robotConfig = null;
+    RobotConfig robotConfig = null; // Initialize to null
     try {
-      // Load the config from the GUI settings file.
+      // This should work in simulation too, as files in src/main/deploy are available.
       robotConfig = RobotConfig.fromGUISettings();
     } catch (Exception e) {
-        System.err.println("ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following may not work correctly.");
+        System.err.println("CRITICAL ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following will not work.");
         e.printStackTrace();
     }
     
-    AutoBuilder.configure(
-        localizationSubsystem::getPose, // Robot pose supplier
-        localizationSubsystem::resetPose, // Method to reset odometry
-        driveSubsystem::getChassisSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-        driveSubsystem::setChassisSpeeds, // Method that will drive the robot
-        new PPLTVController(0.02), // PPLTVController is the built in path following controller for differential drive trains
-        robotConfig, // The robot configuration
-        () -> {
-          // Boolean supplier that controls when the path will be mirrored for the red alliance
-          var alliance = DriverStation.getAlliance();
-          if (alliance.isPresent()) {
-            return alliance.get() == DriverStation.Alliance.Red;
-          }
-          return false;
-        },
-        driveSubsystem // Reference to this subsystem to set requirements
-    );
+    // Configure AutoBuilder, but only if the config was loaded successfully.
+    if (robotConfig != null) {
+      AutoBuilder.configure(
+          localizationSubsystem::getPose, // Robot pose supplier
+          localizationSubsystem::resetPose, // Method to reset odometry
+          driveSubsystem::getChassisSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+          driveSubsystem::setChassisSpeeds, // Method that will drive the robot
+          new PPLTVController(0.02), // PPLTVController is the built in path following controller for differential drive trains
+          robotConfig, // The robot configuration
+          () -> {
+            // Boolean supplier that controls when the path will be mirrored for the red alliance
+            var alliance = DriverStation.getAlliance();
+            if (alliance.isPresent()) {
+              return alliance.get() == DriverStation.Alliance.Red;
+            }
+            return false;
+          },
+          driveSubsystem // Reference to this subsystem to set requirements
+      );
+      // ONLY build the chooser if configuration was successful
+      pathPlannerChooser = AutoBuilder.buildAutoChooser();
+      SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
+    }
 
     // Register all preset commands for use in PathPlanner
     NamedCommands.registerCommand("scoreL3", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
@@ -146,10 +152,6 @@ public class RobotContainer {
     NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState));
     NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState).getMarkScoredCommand());
     NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
-
-    // Create a chooser for PathPlanner paths
-    pathPlannerChooser = AutoBuilder.buildAutoChooser();
-    SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
 
     // Configure the auto chooser
     autoChooser.setDefaultOption("Do Nothing", AutoMode.DO_NOTHING);
@@ -208,6 +210,7 @@ public class RobotContainer {
       case SIMPLE_AUTO_DRIVE:
         return simpleAutoDriveCommand;
       case PATHPLANNER_AUTO:
+        // Safely get the selected auto command, returning null if the chooser wasn't created
         return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : null;
       case DO_NOTHING:
       default:
@@ -281,3 +284,4 @@ public class RobotContainer {
       visionSubsystem.updateSimulatedVisionData(estimate);
   }
 }
+
