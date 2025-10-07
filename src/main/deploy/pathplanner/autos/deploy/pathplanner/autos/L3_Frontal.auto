@@ -1,0 +1,55 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DriveToFront"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "scoreL3"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "CollectFront"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "autoAlign"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ScoreLoading"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "SL3_Score"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "scoreL2"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}
