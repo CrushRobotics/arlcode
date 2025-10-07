@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.OperatorConstants;
@@ -159,6 +160,9 @@ public class RobotContainer {
     autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
     autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
     SmartDashboard.putData("Auto Chooser", autoChooser);
+
+    // Add a default command for the localization subsystem to ensure its periodic method is called
+    localizationSubsystem.setDefaultCommand(new RunCommand(() -> {}, localizationSubsystem));
 
     configureBindings();
   }
