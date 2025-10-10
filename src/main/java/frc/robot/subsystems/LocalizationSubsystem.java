@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -70,14 +71,27 @@ public class LocalizationSubsystem extends SubsystemBase {
         SmartDashboard.putBoolean("Localization/" + limelightName + "/HasPoseEstimate", visionPoseEstimate != null);
 
         if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
-             // DEBUG: Confirm that we are entering the block to add the measurement
-             SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", true);
-             
-             // We have a valid pose from the camera. Let's add it to the estimator.
-             // We can trust Limelight's timestamp for this.
-             poseEstimator.addVisionMeasurement(
-                visionPoseEstimate.pose, 
-                visionPoseEstimate.timestampSeconds);
+            
+            // --- SIMULATION FIX ---
+            // Only add the vision measurement if the robot is moving slowly.
+            // This prevents the simulation feedback loop that stops turning.
+            ChassisSpeeds currentSpeeds = driveSubsystem.getChassisSpeeds();
+            boolean isStationary = Math.abs(currentSpeeds.vxMetersPerSecond) < 0.1 && 
+                                   Math.abs(currentSpeeds.omegaRadiansPerSecond) < 0.1;
+
+            if (isStationary) {
+                 // DEBUG: Confirm that we are entering the block to add the measurement
+                SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", true);
+                
+                // We have a valid pose from the camera. Let's add it to the estimator.
+                // We can trust Limelight's timestamp for this.
+                poseEstimator.addVisionMeasurement(
+                    visionPoseEstimate.pose, 
+                    visionPoseEstimate.timestampSeconds);
+            } else {
+                SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", false);
+            }
+
         } else {
             // DEBUG: If we don't add a measurement, explicitly say so.
             SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", false);
@@ -105,4 +119,3 @@ public class LocalizationSubsystem extends SubsystemBase {
             newPose);
     }
 }
-
