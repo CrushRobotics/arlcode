@@ -271,14 +271,7 @@ public static final double kP_TURN_TO_POSE = 0.05;
 public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.2;
 public static final double TURN_TO_POSE_TOLERANCE_DEGREES = 5.0;
 
-/**
- * A list of AprilTag IDs that are on the RED ALLIANCE coral collection chutes.
- */
 public static final List<Integer> RED_CORAL_COLLECTION_TAG_IDS = List.of(1, 2);
-
-/**
- * A list of AprilTag IDs that are on the BLUE ALLIANCE coral collection chutes.
- */
 public static final List<Integer> BLUE_CORAL_COLLECTION_TAG_IDS = List.of(12, 13);
 
 

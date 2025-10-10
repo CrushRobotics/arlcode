@@ -139,17 +139,9 @@ public class CANDriveSubsystem extends SubsystemBase {
     }
 
     private void drive(double left, double right, boolean isVelocity) {
-        double leftOutput = left;
-        double rightOutput = right;
-
-        if (!isVelocity) {
-            // Scale down joystick input for better control
-            leftOutput *= 0.65;
-            rightOutput *= 0.65;
-        }
-
-        leftOut.Output = leftOutput;
-        rightOut.Output = rightOutput;
+        // Scaling is now handled in the TeleopDriveCommand.
+        leftOut.Output = left;
+        rightOut.Output = right;
 
         leftLeader.setControl(leftOut);
         rightLeader.setControl(rightOut);
@@ -184,3 +176,4 @@ public class CANDriveSubsystem extends SubsystemBase {
         RoboRioSim.setVInVoltage(RobotController.getBatteryVoltage());
     }
 }
+
