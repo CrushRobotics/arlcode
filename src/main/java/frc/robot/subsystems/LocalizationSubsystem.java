@@ -72,9 +72,10 @@ public class LocalizationSubsystem extends SubsystemBase {
 
         if (visionPoseEstimate != null && LimelightHelpers.validPoseEstimate(visionPoseEstimate)) {
             
-            // --- SIMULATION FIX ---
+            // --- SIMULATION FIX & REAL-WORLD STABILITY IMPROVEMENT ---
             // Only add the vision measurement if the robot is moving slowly.
-            // This prevents the simulation feedback loop that stops turning.
+            // This prevents noisy data from corrupting the pose estimate during fast movements
+            // and fixes the simulation feedback loop that was preventing turning.
             ChassisSpeeds currentSpeeds = driveSubsystem.getChassisSpeeds();
             boolean isStationary = Math.abs(currentSpeeds.vxMetersPerSecond) < 0.1 && 
                                    Math.abs(currentSpeeds.omegaRadiansPerSecond) < 0.1;
