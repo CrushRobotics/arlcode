@@ -36,7 +36,6 @@ import frc.robot.commands.MoveArmCommand;
 import frc.robot.commands.MoveArmCommand.ArmDirection;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
-import frc.robot.commands.TeleopDriveCommand;
 import frc.robot.subsystems.CANAlgaeIntakeSubsystem;
 import frc.robot.subsystems.CANAlgaeSubsystem;
 import frc.robot.subsystems.CANArmSubsystem;
@@ -164,16 +163,6 @@ public class RobotContainer {
 
     // Add a default command for the localization subsystem to ensure its periodic method is called
     localizationSubsystem.setDefaultCommand(new RunCommand(() -> {}, localizationSubsystem));
-
-    // Set the default command for the drive subsystem. This allows the robot to be
-    // driven using arcade controls from the driver's controller.
-    // The suppliers are negated to match the standard WPILib coordinate system
-    // (forward is positive, counter-clockwise is positive).
-    driveSubsystem.setDefaultCommand(new TeleopDriveCommand(
-      driveSubsystem, 
-      () -> -driverController.getLeftY(), 
-      () -> -driverController.getRightX()
-    ));
 
     configureBindings();
   }
