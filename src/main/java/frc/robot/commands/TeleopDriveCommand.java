@@ -4,11 +4,11 @@ import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.subsystems.CANDriveSubsystem;
+import frc.robot.subsystems.TankDriveSubsystem;
 
 public class TeleopDriveCommand extends Command {
 
-    private final CANDriveSubsystem driveSubsystem;
+    private final TankDriveSubsystem driveSubsystem;
     private final DoubleSupplier fwdSupplier;
     private final DoubleSupplier rotSupplier;
 
@@ -20,7 +20,7 @@ public class TeleopDriveCommand extends Command {
      * @param fwdSupplier    A DoubleSupplier that provides the forward/backward input (-1 to 1).
      * @param rotSupplier    A DoubleSupplier that provides the rotation input (-1 to 1).
      */
-    public TeleopDriveCommand(CANDriveSubsystem driveSubsystem, DoubleSupplier fwdSupplier, DoubleSupplier rotSupplier) {
+    public TeleopDriveCommand(TankDriveSubsystem driveSubsystem, DoubleSupplier fwdSupplier, DoubleSupplier rotSupplier) {
         this.driveSubsystem = driveSubsystem;
         this.fwdSupplier = fwdSupplier;
         this.rotSupplier = rotSupplier;
@@ -42,12 +42,12 @@ public class TeleopDriveCommand extends Command {
         rot = Math.pow(rot, 3);
         
         // 4. Pass the processed values to the drive subsystem
-        driveSubsystem.drive(fwd, rot);
+        driveSubsystem.arcadeDriveNormalized(fwd, rot);
     }
 
     @Override
     public void end(boolean interrupted) {
         // Stop the drivetrain when the command ends
-        driveSubsystem.drive(0, 0);
+        driveSubsystem.stop();
     }
 }

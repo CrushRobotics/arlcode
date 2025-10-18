@@ -4,19 +4,20 @@
 
 package frc.robot.commands;
 
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.AutoConstants;
-import frc.robot.subsystems.CANDriveSubsystem;
+import frc.robot.subsystems.TankDriveSubsystem;
 
 // Command to run the robot forward for a set time in autonomous
 public class AutoCommand extends Command {
-  CANDriveSubsystem driveSubsystem;
+  TankDriveSubsystem driveSubsystem;
   private Timer timer;
   private double seconds = AutoConstants.AUTO_DRIVE_SECONDS;
 
   // Constructor. Runs only once when the command is first created.
-  public AutoCommand(CANDriveSubsystem driveSubsystem) {
+  public AutoCommand(TankDriveSubsystem driveSubsystem) {
     // Save parameter for use later and initialize timer object.
     this.driveSubsystem = driveSubsystem;
     timer = new Timer();
@@ -39,14 +40,14 @@ public class AutoCommand extends Command {
   @Override
   public void execute() {
     // drive forward at a constant speed
-    driveSubsystem.drive(AutoConstants.AUTO_DRIVE_SPEED, 0.0);
+    driveSubsystem.setChassisSpeeds(new ChassisSpeeds(AutoConstants.AUTO_DRIVE_SPEED, 0, 0));
   }
 
   // Runs each time the command ends via isFinished or being interrupted.
   @Override
   public void end(boolean isInterrupted) {
     // stop drive motors
-    driveSubsystem.drive(0.0, 0.0);
+    driveSubsystem.stop();
   }
 
   // Runs every cycle while the command is scheduled to check if the command is

@@ -3,10 +3,12 @@ package frc.robot.subsystems;
 import java.util.HashSet;
 import java.util.Set;
 
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+
 /**
  * A helper class to keep track of which specific scoring pegs have been scored on.
  */
-public class ReefState {
+public class ReefState extends SubsystemBase {
 
     // We now store a unique string for each peg, e.g., "7_LEFT"
     private final Set<String> scoredPegIds = new HashSet<>();

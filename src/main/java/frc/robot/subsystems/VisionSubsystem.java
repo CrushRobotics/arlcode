@@ -13,13 +13,13 @@ import frc.robot.LimelightHelpers.PoseEstimate;
  */
 public class VisionSubsystem extends SubsystemBase {
     
-    private final CANDriveSubsystem driveSubsystem;
+    private final TankDriveSubsystem driveSubsystem;
 
     // --- SIMULATION ---
     private PoseEstimate simulatedPoseEstimate = null;
 
     // We pass in the drive subsystem to get the robot's orientation (from the NavX)
-    public VisionSubsystem(CANDriveSubsystem drive) {
+    public VisionSubsystem(TankDriveSubsystem drive) {
         this.driveSubsystem = drive;
     }
 

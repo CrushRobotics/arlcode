@@ -54,7 +54,8 @@ public class NavXPigeon2 {
 
   public NavXPigeon2(AHRS ahrs) {
     this.navx = ahrs;
-    yaw = new StatusSignalDouble(() -> -navx.getAngle()); // Negate for CCW+
+    // Negate for CCW+, which is standard for WPILib
+    yaw = new StatusSignalDouble(() -> -navx.getAngle()); 
     pitch = new StatusSignalDouble(() -> navx.getPitch());
     roll = new StatusSignalDouble(() -> navx.getRoll());
   }
@@ -95,4 +96,3 @@ public class NavXPigeon2 {
     return navx;
   } // optional escape hatch
 }
-

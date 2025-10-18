@@ -176,4 +176,3 @@ public class CANDriveSubsystem extends SubsystemBase {
         RoboRioSim.setVInVoltage(RobotController.getBatteryVoltage());
     }
 }
-

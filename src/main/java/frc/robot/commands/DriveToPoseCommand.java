@@ -1,86 +1,99 @@
 package frc.robot.commands;
 
-import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.RamseteController;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.trajectory.Trajectory;
+import edu.wpi.first.math.trajectory.TrajectoryConfig;
+import edu.wpi.first.math.trajectory.TrajectoryGenerator;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.subsystems.CANDriveSubsystem;
-import frc.robot.subsystems.LocalizationSubsystem;
-import frc.robot.Constants.AutoConstants;
+import frc.robot.Constants.LocalizationConstants;
+import frc.robot.Constants.TrajectoryConstants;
+import frc.robot.subsystems.TankDriveSubsystem;
+
+import java.util.List;
 
 /**
- * A command to drive the robot to a specific pose on the field using PID controllers.
+ * Drives the robot from its current pose to a target pose using WPILib's
+ * TrajectoryGenerator + RamseteController, and feeds the resulting ChassisSpeeds
+ * directly into TankDriveSubsystem.setChassisSpeeds().
+ *
+ * Robot will come to a stop at the end pose (0 start/end velocities).
  */
 public class DriveToPoseCommand extends Command {
+  private final TankDriveSubsystem drive;
+  private final Pose2d endPose;
 
-    private final CANDriveSubsystem driveSubsystem;
-    private final LocalizationSubsystem localizationSubsystem;
-    private final Pose2d targetPose;
+  private final DifferentialDriveKinematics kinematics =
+      new DifferentialDriveKinematics(LocalizationConstants.TRACK_WIDTH_METERS);
 
-    private final PIDController driveController;
-    private final PIDController turnController;
+  private final RamseteController ramsete = new RamseteController(); // defaults: b=2.0, zeta=0.7
+  private Trajectory trajectory;
+  private final Timer timer = new Timer();
 
-    /**
-     * Creates a new DriveToPoseCommand.
-     * @param drive The drive subsystem.
-     * @param localization The localization subsystem.
-     * @param target The target pose to drive to.
-     */
-    public DriveToPoseCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, Pose2d target) {
-        this.driveSubsystem = drive;
-        this.localizationSubsystem = localization;
-        this.targetPose = target;
+  public DriveToPoseCommand(TankDriveSubsystem drive, Pose2d endPose) {
+    this.drive = drive;
+    this.endPose = endPose;
+    addRequirements(drive);
+  }
 
-        // Initialize PID controllers with constants
-        driveController = new PIDController(AutoConstants.kP_DRIVE_TO_POSE, 0, 0);
-        turnController = new PIDController(AutoConstants.kP_TURN_TO_POSE, 0, 0);
-        
-        // Allow the turn controller to handle wrapping from -180 to 180 degrees
-        turnController.enableContinuousInput(-180, 180);
+  @Override
+  public void initialize() {
+    var start = drive.getPose();
 
-        // Set tolerances for the PID controllers to use with atSetpoint()
-        driveController.setTolerance(AutoConstants.DRIVE_TO_POSE_TOLERANCE_METERS);
-        turnController.setTolerance(AutoConstants.TURN_TO_POSE_TOLERANCE_DEGREES);
+    // Trajectory config using drivetrain limits from Constants
+    TrajectoryConfig cfg = new TrajectoryConfig(
+        TrajectoryConstants.CRUISE_MPS,
+        TrajectoryConstants.ACCEL_MPS2
+    ).setKinematics(kinematics);
 
-        addRequirements(drive, localization);
-    }
+    // Stop at the end (and start). This helps staging precisely.
+    cfg.setStartVelocity(0.0);
+    cfg.setEndVelocity(0.0);
 
-    @Override
-    public void execute() {
-        Pose2d currentPose = localizationSubsystem.getPose();
-        
-        // Calculate the vector from the robot to the target
-        Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
-        
-        // The desired heading is to face the target location
-        Rotation2d desiredRotation = translationToTarget.getAngle();
+    // No interior waypoints for simplicity; a pure start->end quintic spline
+    trajectory = TrajectoryGenerator.generateTrajectory(
+        start,
+        List.of(), // No interior waypoints
+        endPose,
+        cfg
+    );
 
-        // Use PID controllers to calculate drive and turn speeds simultaneously
-        double driveSpeed = -driveController.calculate(translationToTarget.getNorm(), 0);
-        double turnSpeed = turnController.calculate(currentPose.getRotation().getDegrees(), desiredRotation.getDegrees());
+    timer.reset();
+    timer.start();
 
-        // Clamp the speeds to a reasonable maximum
-        driveSpeed = Math.max(-0.6, Math.min(0.6, driveSpeed));
-        turnSpeed = Math.max(-0.6, Math.min(0.6, turnSpeed));
+    SmartDashboard.putString("DriveToPose/Start", start.toString());
+    SmartDashboard.putString("DriveToPose/End", endPose.toString());
+    SmartDashboard.putNumber("DriveToPose/TotalTime", trajectory.getTotalTimeSeconds());
+  }
 
-        // THE FIX: With a consistent CCW-positive coordinate system from the gyro
-        // to the drive method, we no longer need to negate the turn speed. The PID
-        // output now correctly maps to the desired motor behavior.
-        driveSubsystem.drive(driveSpeed, turnSpeed);
-    }
+  @Override
+  public void execute() {
+    double t = timer.get();
+    Trajectory.State ref = trajectory.sample(t);
 
-    @Override
-    public boolean isFinished() {
-        // The command is finished when the robot is at the target location AND facing
-        // the correct direction. We use the PID controller's atSetpoint() method
-        // which considers the tolerance we set in the constructor.
-        return driveController.atSetpoint() && turnController.atSetpoint();
-    }
+    // Ramsete yields desired ChassisSpeeds (vx, 0, omega) for diff drive
+    ChassisSpeeds speeds = ramsete.calculate(drive.getPose(), ref);
+    drive.setChassisSpeeds(speeds);
 
-    @Override
-    public void end(boolean interrupted) {
-        // Stop the drive motors when the command ends
-        driveSubsystem.drive(0, 0);
-    }
+    SmartDashboard.putNumber("DriveToPose/Time", t);
+    SmartDashboard.putString("DriveToPose/RefPose", ref.poseMeters.toString());
+    SmartDashboard.putNumber("DriveToPose/CmdVx", speeds.vxMetersPerSecond);
+    SmartDashboard.putNumber("DriveToPose/CmdOmega", speeds.omegaRadiansPerSecond);
+  }
+
+  @Override
+  public boolean isFinished() {
+    // End when trajectory time has elapsed; Ramsete converges near the end
+    return timer.get() >= trajectory.getTotalTimeSeconds();
+  }
+
+  @Override
+  public void end(boolean interrupted) {
+    drive.setChassisSpeeds(new ChassisSpeeds()); // stop
+    SmartDashboard.putBoolean("DriveToPose/Interrupted", interrupted);
+  }
 }

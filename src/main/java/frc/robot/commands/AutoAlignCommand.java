@@ -1,162 +1,114 @@
 package frc.robot.commands;
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import frc.robot.Constants.AutoAlignConstants;
-import frc.robot.Constants.VisionConstants;
-import frc.robot.subsystems.CANDriveSubsystem;
-import frc.robot.subsystems.LocalizationSubsystem;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.subsystems.ReefState;
-import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.subsystems.AlignmentCostUtil;
-import frc.robot.subsystems.AlignmentCostUtil.TargetCost;
+import frc.robot.subsystems.TankDriveSubsystem;
+import frc.robot.Constants.VisionConstants.ScoringPose;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Comparator;
 import java.util.Optional;
 
+/**
+ * AutoAlign (trajectory version):
+ * 1) Pick closest valid reef scoring pose (not scored yet).
+ * 2) Build an "approach" pose = 1.0 m behind the final scoring pose.
+ * 3) Schedules a DriveToPose to go from current -> approach, then stop.
+ * 4) Schedules a second DriveToPose to go from approach -> final stop.
+ */
 public class AutoAlignCommand extends Command {
 
-    private final CANDriveSubsystem driveSubsystem;
-    private final LocalizationSubsystem localizationSubsystem;
-    private final ReefState reefState;
+  private final TankDriveSubsystem drive;
+  private final ReefState reefState;
+  private Command autoCommand; // The sequential command group we will run
 
-    private final ProfiledPIDController turnController;
-    private final ProfiledPIDController driveController;
+  public AutoAlignCommand(TankDriveSubsystem drive, ReefState reefState) {
+    this.drive = drive;
+    this.reefState = reefState;
+    addRequirements(drive);
+  }
+  
+  @Override
+  public void initialize() {
+    // Dynamically build the command sequence each time this command starts.
+    Optional<ScoringPose> bestTarget = findBestTarget(drive.getPose());
 
-    private Optional<TargetCost> bestTarget = Optional.empty();
-
-    public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
-        this.driveSubsystem = drive;
-        this.localizationSubsystem = localization;
-        this.reefState = reef;
-
-        turnController = new ProfiledPIDController(
-            AutoAlignConstants.kP_TURN, 
-            AutoAlignConstants.kI_TURN, 
-            AutoAlignConstants.kD_TURN,
-            new TrapezoidProfile.Constraints(360, 360) // Max angular velocity and acceleration in deg/s
-        );
-        turnController.enableContinuousInput(-180, 180);
-        turnController.setTolerance(AutoAlignConstants.TURN_TOLERANCE_DEGREES);
-
-        driveController = new ProfiledPIDController(
-            AutoAlignConstants.kP_DRIVE, 
-            AutoAlignConstants.kI_DRIVE, 
-            AutoAlignConstants.kD_DRIVE,
-            new TrapezoidProfile.Constraints(1.0, 1.0) // Max velocity and acceleration in m/s
-        );
-        driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
-        
-        addRequirements(drive, localization);
+    if (bestTarget.isEmpty()) {
+        SmartDashboard.putString("AutoAlign/TargetID", "None");
+        System.out.println("AutoAlign: No valid target found.");
+        autoCommand = null; // No command to run
+        return;
     }
 
-    @Override
-    public void initialize() {
-        bestTarget = findBestTarget();
-        if (bestTarget.isPresent()) {
-            System.out.println("Auto Align Initialized: Targeting " + bestTarget.get().scoringPose.id);
-            // Reset controllers to current state
-            driveController.reset(localizationSubsystem.getPose().getTranslation().getDistance(bestTarget.get().scoringPose.pose.getTranslation()));
-            turnController.reset(localizationSubsystem.getPose().getRotation().getDegrees());
-        } else {
-            System.out.println("Auto Align Initialized: No valid targets found.");
-        }
-    }
+    ScoringPose target = bestTarget.get();
+    Pose2d finalStop = target.pose;
 
-    @Override
-    public void execute() {
-        if (bestTarget.isEmpty()) {
-            driveSubsystem.drive(0, 0);
-            return;
-        }
+    // Approach pose is 1 meter behind the final stop pose, along the same heading.
+    Pose2d approach = finalStop.transformBy(new Transform2d(
+        new Translation2d(-1.0, 0.0),
+        new Rotation2d()
+    ));
 
-        // If we are at the setpoint, stop moving to prevent oscillation.
-        if (driveController.atSetpoint() && turnController.atSetpoint()) {
-            driveSubsystem.drive(0, 0);
-            return;
-        }
+    SmartDashboard.putString("AutoAlign/TargetID", target.id);
+    SmartDashboard.putString("AutoAlign/Approach", approach.toString());
+    SmartDashboard.putString("AutoAlign/Final", finalStop.toString());
 
-        Pose2d currentPose = localizationSubsystem.getPose();
-        Pose2d targetPose = bestTarget.get().scoringPose.pose;
-        
-        // --- Calculations for both controllers ---
-        Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
-        double currentDistance = translationToTarget.getNorm();
-        Rotation2d desiredRotation = translationToTarget.getAngle();
+    // Create the two-part trajectory drive as a sequential command group
+    autoCommand = new SequentialCommandGroup(
+        new DriveToPoseCommand(drive, approach),
+        new DriveToPoseCommand(drive, finalStop)
+    );
+    
+    // Initialize the created command
+    autoCommand.initialize();
+  }
 
-        // --- Rotation Control ---
-        double rotationSpeed = turnController.calculate(
-            currentPose.getRotation().getDegrees(),
-            desiredRotation.getDegrees()
-        );
+  @Override
+  public void execute() {
+      if (autoCommand != null) {
+          autoCommand.execute();
+      }
+  }
 
-        // --- Translation Control ---
-        double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
+  @Override
+  public void end(boolean interrupted) {
+      if(autoCommand != null) {
+          autoCommand.end(interrupted);
+      }
+  }
 
-        // Scale drive speed by how much we're facing the target. This prevents driving sideways.
-        double angleError = currentPose.getRotation().minus(desiredRotation).getRadians();
-        double driveScale = Math.cos(angleError);
-        // Only drive when generally facing the target
-        driveScale = Math.max(0, driveScale);
+  @Override
+  public boolean isFinished() {
+      // The command is finished if no path was generated or the path is done
+      return autoCommand == null || autoCommand.isFinished();
+  }
 
-        double finalDriveSpeed = driveSpeed * driveScale;
+  private Optional<ScoringPose> findBestTarget(Pose2d currentPose) {
+    // Find the closest scoring pose that has not already been scored on
+    return frc.robot.Constants.VisionConstants.ALL_SCORING_POSES.stream()
+        .filter(p -> !reefState.isScored(p.id)) // Filter out scored poses
+        .min(Comparator.comparingDouble(p -> 
+            p.pose.getTranslation().getDistance(currentPose.getTranslation())));
+  }
 
-        // Apply max speed limits
-        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.5, 0.5);
-        rotationSpeed = MathUtil.clamp(rotationSpeed, -0.5, 0.5);
-
-        driveSubsystem.drive(finalDriveSpeed, rotationSpeed);
-
-        SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
-        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
-        SmartDashboard.putNumber("AutoAlign/RotationError", currentPose.getRotation().getDegrees() - desiredRotation.getDegrees());
-    }
-
-    private Optional<TargetCost> findBestTarget() {
-        List<TargetCost> potentialTargets = new ArrayList<>();
-        Pose2d currentPose = localizationSubsystem.getPose();
-        double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
-
-        for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
-            AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
-                .ifPresent(potentialTargets::add);
-        }
-
-        if (potentialTargets.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Collections.sort(potentialTargets);
-        return Optional.of(potentialTargets.get(0));
-    }
-
-    @Override
-    public boolean isFinished() {
-        // This command runs as long as the button is held, so it never "finishes" on its own.
-        return false;
-    }
-
-    @Override
-    public void end(boolean interrupted) {
-        driveSubsystem.drive(0, 0);
-    }
-
-    public Command getMarkScoredCommand() {
-        return new InstantCommand(() -> {
-            Optional<TargetCost> target = findBestTarget();
-            target.ifPresent(t -> {
-                reefState.markScored(t.scoringPose.id);
-                System.out.println("Marked " + t.scoringPose.id + " as scored.");
-            });
-        });
-    }
+  /**
+   * Returns an InstantCommand that marks the currently targeted scoring location as scored.
+   */
+  public InstantCommand getMarkScoredCommand() {
+      return new InstantCommand(() -> {
+          // Re-evaluate the best target when the button is pressed, in case the robot has moved
+          findBestTarget(drive.getPose()).ifPresent(t -> {
+              reefState.markScored(t.id);
+              System.out.println("Marked " + t.id + " as scored.");
+              SmartDashboard.putBoolean("ReefState/" + t.id, true);
+          });
+      }, reefState); // Add subsystem requirement
+  }
 }
+

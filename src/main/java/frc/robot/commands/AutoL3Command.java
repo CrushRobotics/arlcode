@@ -17,7 +17,7 @@ import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 import frc.robot.subsystems.CANArmSubsystem;
 import frc.robot.subsystems.CANCoralIntakeSubsystem;
-import frc.robot.subsystems.CANDriveSubsystem;
+import frc.robot.subsystems.TankDriveSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
@@ -26,7 +26,7 @@ import frc.robot.subsystems.VisionSubsystem;
 public class AutoL3Command extends SequentialCommandGroup {
 
 public AutoL3Command(
-    CANDriveSubsystem drive, 
+    TankDriveSubsystem drive, 
     LocalizationSubsystem localization, 
     VisionSubsystem vision,
     CANArmSubsystem arm, 
@@ -37,7 +37,7 @@ public AutoL3Command(
 
     addCommands(
         // 1. Scan and score pre-loaded coral on L3
-        new AutoAlignCommand(drive, localization, vision, reefState),
+        new AutoAlignCommand(drive, reefState),
         new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
         new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0),
 
@@ -61,7 +61,7 @@ public AutoL3Command(
             Pose2d collectionPose = findClosestPoseFromIds(currentPose, collectionTagIds)
                 .orElse(currentPose); // Default to staying put if no tags found
 
-            return new DriveToPoseCommand(drive, localization, collectionPose);
+            return new DriveToPoseCommand(drive, collectionPose);
         }, Set.of(drive, localization, arm)),
 
         new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Up).withTimeout(2.0),
@@ -71,8 +71,7 @@ public AutoL3Command(
         Commands.runOnce(() -> arm.setPosition(ArmConstants.HOME_POSITION_ROTATIONS)),
         
         // The AutoAlignCommand will find the best available scoring pose and drive to it.
-        // The redundant DriveToPoseCommand has been removed.
-        new AutoAlignCommand(drive, localization, vision, reefState),
+        new AutoAlignCommand(drive, reefState),
         new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
         new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0)
     );
@@ -94,4 +93,5 @@ private Optional<Pose2d> findClosestPoseFromIds(Pose2d fromPose, List<Integer> t
         ));
 }
 }
+
 

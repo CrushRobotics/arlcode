@@ -13,9 +13,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 
-// NOTE: The drive motor control and joystick logic has been moved to CANDriveSubsystem
-// and a new TeleopDriveCommand. This class is now cleaner and focused on the main
-// robot lifecycle, following best practices for Command-Based programming.
 public class Robot extends TimedRobot {
   
   private Command m_autonomousCommand;
@@ -23,22 +20,14 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // This creates HttpCamera objects for each Limelight and then explicitly
-    // tells the CameraServer to start capturing and streaming them.
-
-    // Create a camera object for the right Limelight
     HttpCamera limelightRight = new HttpCamera("limelight-right", "http://limelight-right.local:5800/stream.mjpg");
-    // Tell the CameraServer to start streaming this camera
     CameraServer.startAutomaticCapture(limelightRight);
 
-    // Create a camera object for the left Limelight
     HttpCamera limelightLeft = new HttpCamera("limelight-left", "http://limelight-left.local:5801/stream.mjpg");
-    // Tell the CameraServer to start streaming this camera
     CameraServer.startAutomaticCapture(limelightLeft);
   
     m_robotContainer = new RobotContainer();
 
-    // Used to track usage of the KitBot code, please do not remove
     HAL.report(tResourceType.kResourceType_Framework, 9);
   }
 
@@ -77,8 +66,6 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    // Teleop logic is now handled by the command scheduler.
-    // The default TeleopDriveCommand will run automatically.
   }
 
   @Override
@@ -92,13 +79,11 @@ public class Robot extends TimedRobot {
 
   @Override
   public void simulationInit() {
-    // Any specific initialization for simulation can go here.
     m_robotContainer.simulationInit();
   }
 
   @Override
   public void simulationPeriodic() {
-    // This method is called approximately every 20ms in simulation.
     m_robotContainer.simulationPeriodic();
   }
   
