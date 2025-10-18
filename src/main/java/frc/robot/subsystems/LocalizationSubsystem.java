@@ -10,8 +10,6 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
 import frc.robot.Constants.LocalizationConstants;
-import frc.robot.Constants.DriveConstants;
-
 
 /**
  * The LocalizationSubsystem is responsible for fusing sensor data from the
@@ -20,16 +18,16 @@ import frc.robot.Constants.DriveConstants;
  */
 public class LocalizationSubsystem extends SubsystemBase {
 
-    private final TankDrive driveSubsystem;
+    private final CANDriveSubsystem driveSubsystem;
     private final VisionSubsystem visionSubsystem;
 
     // For a tank drive, we use a DifferentialDrivePoseEstimator
     private final DifferentialDrivePoseEstimator poseEstimator;
     private final Field2d field = new Field2d();
 
-    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(DriveConstants.TRACK_WIDTH_METERS);
+    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(LocalizationConstants.TRACK_WIDTH_METERS);
 
-    public LocalizationSubsystem(TankDrive drive, VisionSubsystem vision) {
+    public LocalizationSubsystem(CANDriveSubsystem drive, VisionSubsystem vision) {
         this.driveSubsystem = drive;
         this.visionSubsystem = vision;
 
@@ -37,9 +35,9 @@ public class LocalizationSubsystem extends SubsystemBase {
         // the wheel distances, and an initial pose.
         poseEstimator = new DifferentialDrivePoseEstimator(
                 kinematics,
-                driveSubsystem.getHeadingRotation2d(),
-                driveSubsystem.getLeftMeters(),
-                driveSubsystem.getRightMeters(),
+                driveSubsystem.getRotation2d(),
+                driveSubsystem.getLeftDistanceMeters(),
+                driveSubsystem.getRightDistanceMeters(),
                 new Pose2d()); // Start at (0,0)
 
         SmartDashboard.putData("Field", field);
@@ -49,9 +47,9 @@ public class LocalizationSubsystem extends SubsystemBase {
     public void periodic() {
         // Update the pose estimator with the latest drive odometry
         poseEstimator.update(
-                driveSubsystem.getHeadingRotation2d(),
-                driveSubsystem.getLeftMeters(),
-                driveSubsystem.getRightMeters());
+                driveSubsystem.getRotation2d(),
+                driveSubsystem.getLeftDistanceMeters(),
+                driveSubsystem.getRightDistanceMeters());
 
         // Fuse vision data from BOTH Limelights
         addVisionMeasurement("limelight-right");
@@ -116,9 +114,9 @@ public class LocalizationSubsystem extends SubsystemBase {
      */
     public void resetPose(Pose2d newPose) {
         poseEstimator.resetPosition(
-            driveSubsystem.getHeadingRotation2d(),
-            driveSubsystem.getLeftMeters(),
-            driveSubsystem.getRightMeters(),
+            driveSubsystem.getRotation2d(),
+            driveSubsystem.getLeftDistanceMeters(),
+            driveSubsystem.getRightDistanceMeters(),
             newPose);
     }
 }

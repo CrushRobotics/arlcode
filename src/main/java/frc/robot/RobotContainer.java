@@ -24,7 +24,7 @@ import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
-import frc.robot.commands.AutoAlign;
+import frc.robot.commands.AutoAlignCommand;
 import frc.robot.commands.AutoCommand;
 import frc.robot.commands.AutoL3Command;
 import frc.robot.commands.ClimberClimbCommand;
@@ -40,7 +40,7 @@ import frc.robot.subsystems.CANAlgaeIntakeSubsystem;
 import frc.robot.subsystems.CANAlgaeSubsystem;
 import frc.robot.subsystems.CANArmSubsystem;
 import frc.robot.subsystems.CANCoralIntakeSubsystem;
-import frc.robot.subsystems.TankDrive;
+import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 import frc.robot.subsystems.ClimberSubsystem;
 import frc.robot.subsystems.LEDSubsystem;
@@ -61,7 +61,7 @@ public class RobotContainer {
   }
 
   // The robot's subsystems
-  private final TankDrive driveSubsystem = new TankDrive();
+  private final CANDriveSubsystem driveSubsystem = new CANDriveSubsystem();
   private final VisionSubsystem visionSubsystem = new VisionSubsystem(driveSubsystem);
   private final LocalizationSubsystem localizationSubsystem = new LocalizationSubsystem(driveSubsystem, visionSubsystem);
 
@@ -150,16 +150,8 @@ public class RobotContainer {
     NamedCommands.registerCommand("intakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     NamedCommands.registerCommand("outtakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     NamedCommands.registerCommand("climb", new ClimberClimbCommand(climberSubsystem));
-    
-    // AutoAlign now uses TankDrive, so we don't need to pass other subsystems to it for the NamedCommand
-    NamedCommands.registerCommand("autoAlign", new AutoAlign(driveSubsystem));
-    
-    // The AutoAlignCommand from the old system is no longer used for named commands.
-    // However, if you need a way to mark scored, you would need a different mechanism
-    // or adapt the old AutoAlignCommand for that specific purpose.
-    // For now, removing the "markScored" named command to resolve compilation errors.
-    // NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState).getMarkScoredCommand());
-    
+    NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState));
+    NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState).getMarkScoredCommand());
     NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
 
     // Configure the auto chooser
@@ -194,14 +186,18 @@ public class RobotContainer {
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
 
     // --- UPDATED Auto Align Binding ---
-    driverController.a().whileTrue(new AutoAlign(driveSubsystem));
+    AutoAlignCommand autoAlignCommand = new AutoAlignCommand(
+        driveSubsystem, 
+        localizationSubsystem, 
+        visionSubsystem, 
+        reefState);
+        
+    driverController.a().whileTrue(autoAlignCommand);
 
-    // Button to mark a target as "scored" - This functionality needs to be re-evaluated
-    // since the old AutoAlignCommand is no longer the primary one.
-    // For now, this is commented out.
-    // driverController.b().onTrue(
-    //     autoAlignCommand.getMarkScoredCommand()
-    // );
+    // Button to mark a target as "scored"
+    driverController.b().onTrue(
+        autoAlignCommand.getMarkScoredCommand()
+    );
 
      // LED subsystem binding
      driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
@@ -292,3 +288,4 @@ public class RobotContainer {
       visionSubsystem.updateSimulatedVisionData(estimate);
   }
 }
+

@@ -1,5 +1,6 @@
 package frc.robot.commands;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -10,7 +11,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import frc.robot.Constants.AutoAlignConstants;
 import frc.robot.Constants.VisionConstants;
-import frc.robot.subsystems.TankDrive;
+import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
@@ -22,11 +23,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import edu.wpi.first.math.MathUtil;
-
 public class AutoAlignCommand extends Command {
 
-    private final TankDrive driveSubsystem;
+    private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
     private final ReefState reefState;
 
@@ -35,7 +34,7 @@ public class AutoAlignCommand extends Command {
 
     private Optional<TargetCost> bestTarget = Optional.empty();
 
-    public AutoAlignCommand(TankDrive drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
+    public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
         this.reefState = reef;
@@ -76,13 +75,13 @@ public class AutoAlignCommand extends Command {
     @Override
     public void execute() {
         if (bestTarget.isEmpty()) {
-            driveSubsystem.stop();
+            driveSubsystem.drive(0, 0);
             return;
         }
 
         // If we are at the setpoint, stop moving to prevent oscillation.
         if (driveController.atSetpoint() && turnController.atSetpoint()) {
-            driveSubsystem.stop();
+            driveSubsystem.drive(0, 0);
             return;
         }
 
@@ -115,7 +114,7 @@ public class AutoAlignCommand extends Command {
         finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.5, 0.5);
         rotationSpeed = MathUtil.clamp(rotationSpeed, -0.5, 0.5);
 
-        driveSubsystem.arcadeDriveNormalized(finalDriveSpeed, rotationSpeed);
+        driveSubsystem.drive(finalDriveSpeed, rotationSpeed);
 
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
@@ -125,7 +124,7 @@ public class AutoAlignCommand extends Command {
     private Optional<TargetCost> findBestTarget() {
         List<TargetCost> potentialTargets = new ArrayList<>();
         Pose2d currentPose = localizationSubsystem.getPose();
-        double velocity = driveSubsystem.getWheelSpeeds().leftMetersPerSecond; // Simplified for this context
+        double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
 
         for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
             AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
@@ -148,7 +147,7 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        driveSubsystem.stop();
+        driveSubsystem.drive(0, 0);
     }
 
     public Command getMarkScoredCommand() {

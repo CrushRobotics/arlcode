@@ -7,16 +7,16 @@ package frc.robot.commands;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.AutoConstants;
-import frc.robot.subsystems.TankDrive;
+import frc.robot.subsystems.CANDriveSubsystem;
 
 // Command to run the robot forward for a set time in autonomous
 public class AutoCommand extends Command {
-  TankDrive driveSubsystem;
+  CANDriveSubsystem driveSubsystem;
   private Timer timer;
   private double seconds = AutoConstants.AUTO_DRIVE_SECONDS;
 
   // Constructor. Runs only once when the command is first created.
-  public AutoCommand(TankDrive driveSubsystem) {
+  public AutoCommand(CANDriveSubsystem driveSubsystem) {
     // Save parameter for use later and initialize timer object.
     this.driveSubsystem = driveSubsystem;
     timer = new Timer();
@@ -39,14 +39,14 @@ public class AutoCommand extends Command {
   @Override
   public void execute() {
     // drive forward at a constant speed
-    driveSubsystem.arcadeDriveNormalized(AutoConstants.AUTO_DRIVE_SPEED, 0.0);
+    driveSubsystem.drive(AutoConstants.AUTO_DRIVE_SPEED, 0.0);
   }
 
   // Runs each time the command ends via isFinished or being interrupted.
   @Override
   public void end(boolean isInterrupted) {
     // stop drive motors
-    driveSubsystem.stop();
+    driveSubsystem.drive(0.0, 0.0);
   }
 
   // Runs every cycle while the command is scheduled to check if the command is
