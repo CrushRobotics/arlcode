@@ -13,13 +13,13 @@ import frc.robot.LimelightHelpers.PoseEstimate;
  */
 public class VisionSubsystem extends SubsystemBase {
     
-    private final CANDriveSubsystem driveSubsystem;
+    private final TankDrive driveSubsystem;
 
     // --- SIMULATION ---
     private PoseEstimate simulatedPoseEstimate = null;
 
     // We pass in the drive subsystem to get the robot's orientation (from the NavX)
-    public VisionSubsystem(CANDriveSubsystem drive) {
+    public VisionSubsystem(TankDrive drive) {
         this.driveSubsystem = drive;
     }
 
@@ -31,7 +31,7 @@ public class VisionSubsystem extends SubsystemBase {
         }
 
         // This is required for MegaTag2 to work with an external IMU (like the NavX).
-        double heading = driveSubsystem.getHeading();
+        double heading = driveSubsystem.getHeadingRotation2d().getDegrees();
         // Send robot orientation to BOTH Limelights
         LimelightHelpers.SetRobotOrientation("limelight-right", heading, 0, 0, 0, 0, 0);
         LimelightHelpers.SetRobotOrientation("limelight-left", heading, 0, 0, 0, 0, 0);

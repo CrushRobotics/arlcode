@@ -54,7 +54,8 @@ public class NavXPigeon2 {
 
   public NavXPigeon2(AHRS ahrs) {
     this.navx = ahrs;
-    yaw = new StatusSignalDouble(() -> -navx.getAngle()); // Negate for CCW+
+    // THE FIX: Negate the NavX angle to conform to WPILib's CCW-positive convention.
+    yaw = new StatusSignalDouble(() -> -navx.getAngle());
     pitch = new StatusSignalDouble(() -> navx.getPitch());
     roll = new StatusSignalDouble(() -> navx.getRoll());
   }
@@ -75,6 +76,7 @@ public class NavXPigeon2 {
   /** Set reported yaw to the given degrees (zero then offset). */
   public void setYaw(double degrees) {
     navx.zeroYaw(); // make current reading 0
+    // THE FIX: The angle adjustment must also be negated to match the CCW+ convention.
     navx.setAngleAdjustment(-degrees); // shift to requested heading
   }
 
@@ -95,4 +97,3 @@ public class NavXPigeon2 {
     return navx;
   } // optional escape hatch
 }
-
