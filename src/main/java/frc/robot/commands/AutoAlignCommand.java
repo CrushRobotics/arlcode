@@ -24,25 +24,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class AutoAlignCommand extends Command {
 
     private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
+    private final VisionSubsystem visionSubsystem;
     private final ReefState reefState;
 
     private final ProfiledPIDController turnController;
     private final ProfiledPIDController driveController;
 
-    // --- FIX: Make target selection sticky ---
-    // This static variable will hold the ID of the target we are locked onto.
-    // It persists across command restarts until the command is fully ended.
     private static String lockedTargetId = null;
     private Optional<TargetCost> bestTarget = Optional.empty();
 
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
+        this.visionSubsystem = vision;
         this.reefState = reef;
 
         turnController = new ProfiledPIDController(
@@ -62,14 +62,12 @@ public class AutoAlignCommand extends Command {
         );
         driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
         
-        addRequirements(drive, localization);
+        addRequirements(drive, localization, vision);
     }
 
     @Override
     public void initialize() {
-        // --- FIX: Logic to lock onto a target ---
         if (lockedTargetId == null) {
-            // No target is locked, so find the best one now.
             bestTarget = findBestTarget();
             if (bestTarget.isPresent()) {
                 lockedTargetId = bestTarget.get().scoringPose.id;
@@ -78,12 +76,11 @@ public class AutoAlignCommand extends Command {
                  System.out.println("Auto Align Initialized: No valid targets found.");
             }
         } else {
-            // A target is already locked, re-acquire it instead of finding a new one.
             System.out.println("Auto Align Re-initialized: Sticking with locked target: " + lockedTargetId);
             bestTarget = findTargetById(lockedTargetId);
             if (bestTarget.isEmpty()) {
                 System.out.println("Could not re-find locked target. Clearing lock.");
-                lockedTargetId = null; // Clear if we can't find it anymore
+                lockedTargetId = null; 
             }
         }
     }
@@ -98,30 +95,24 @@ public class AutoAlignCommand extends Command {
         Pose2d currentPose = localizationSubsystem.getPose();
         Pose2d targetPose = bestTarget.get().scoringPose.pose;
         
-        // --- Calculations for both controllers ---
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
         double currentDistance = translationToTarget.getNorm();
         Rotation2d desiredRotation = translationToTarget.getAngle();
 
-        // --- Translation Control (calculates a linear velocity in m/s) ---
         double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
 
-        // Scale drive speed by how much we're facing the target. This prevents driving sideways.
         double angleError = currentPose.getRotation().minus(desiredRotation).getRadians();
         double driveScale = Math.cos(angleError);
-        // Only drive when generally facing the target
         driveScale = Math.max(0, driveScale);
         double finalDriveSpeed = driveSpeed * driveScale;
         
-        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -1.0, 1.0); // Clamp to a reasonable max speed
+        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -1.0, 1.0);
 
-        // --- Rotation Control (calculates an angular velocity in deg/s) ---
         double rotationSpeedDegPerSec = turnController.calculate(
             currentPose.getRotation().getDegrees(),
             desiredRotation.getDegrees()
         );
 
-        // --- Corrected Stopping Logic ---
         double rotationalErrorDegrees = currentPose.getRotation().minus(desiredRotation).getDegrees();
 
         if (driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES) {
@@ -129,7 +120,6 @@ public class AutoAlignCommand extends Command {
             return;
         }
 
-        // --- Combine into ChassisSpeeds ---
         double rotationSpeedRadPerSec = Units.degreesToRadians(rotationSpeedDegPerSec);
         
         ChassisSpeeds targetChassisSpeeds = new ChassisSpeeds(finalDriveSpeed, 0, rotationSpeedRadPerSec);
@@ -142,16 +132,26 @@ public class AutoAlignCommand extends Command {
     }
 
     private Optional<TargetCost> findBestTarget() {
+        Set<Integer> visibleTagIds = visionSubsystem.getVisibleTagIds();
+
+        if (visibleTagIds.isEmpty()) {
+            System.out.println("AutoAlign: No tags visible to any camera.");
+            return Optional.empty();
+        }
+
         List<TargetCost> potentialTargets = new ArrayList<>();
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
 
         for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
-            AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
-                .ifPresent(potentialTargets::add);
+            if (visibleTagIds.contains(scoringPose.parentTagId)) {
+                AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
+                    .ifPresent(potentialTargets::add);
+            }
         }
 
         if (potentialTargets.isEmpty()) {
+            System.out.println("AutoAlign: Visible tags are not valid scoring targets.");
             return Optional.empty();
         }
 
@@ -159,7 +159,6 @@ public class AutoAlignCommand extends Command {
         return Optional.of(potentialTargets.get(0));
     }
 
-    // --- NEW METHOD to find a specific target by its ID ---
     private Optional<TargetCost> findTargetById(String id) {
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
@@ -181,7 +180,6 @@ public class AutoAlignCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         driveSubsystem.stop();
-        // --- FIX: Clear the locked target when the command is interrupted (button released) ---
         if (interrupted) {
             lockedTargetId = null;
             System.out.println("Auto Align interrupted. Target lock released.");

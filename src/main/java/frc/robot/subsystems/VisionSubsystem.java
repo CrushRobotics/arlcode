@@ -7,6 +7,10 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * The VisionSubsystem is responsible for interfacing with the Limelight cameras
  * and providing pose estimates.
@@ -21,8 +25,8 @@ public class VisionSubsystem extends SubsystemBase {
     // We pass in the drive subsystem to get the robot's orientation (from the NavX)
     public VisionSubsystem(CANDriveSubsystem drive) {
         this.driveSubsystem = drive;
-
-        // Ensure Limelight LEDs are on for vision processing.
+        
+        // Turn on LEDs for both cameras
         LimelightHelpers.setLEDMode_ForceOn("limelight-right");
         LimelightHelpers.setLEDMode_ForceOn("limelight-left");
     }
@@ -101,4 +105,22 @@ public class VisionSubsystem extends SubsystemBase {
     public Pose2d getPose2d(String limelightName) {
         return LimelightHelpers.getBotPose2d_wpiBlue(limelightName);
     }
+
+    /**
+     * Gets the IDs of all AprilTags currently visible to either Limelight.
+     * @return A Set of integer tag IDs.
+     */
+    public Set<Integer> getVisibleTagIds() {
+        Set<Integer> visibleIds = new HashSet<>();
+        // Get raw fiducial data from both cameras
+        var fidsRight = LimelightHelpers.getRawFiducials("limelight-right");
+        var fidsLeft = LimelightHelpers.getRawFiducials("limelight-left");
+
+        // Add all visible tag IDs to the set
+        Arrays.stream(fidsRight).forEach(f -> visibleIds.add(f.id));
+        Arrays.stream(fidsLeft).forEach(f -> visibleIds.add(f.id));
+
+        return visibleIds;
+    }
 }
+
