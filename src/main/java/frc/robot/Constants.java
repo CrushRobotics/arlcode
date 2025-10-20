@@ -124,10 +124,10 @@ public static final double kMAX_OUTPUT = 0.7;
 public static final double kPOSITION_TOLERANCE = 0.5;
 
 
-public static final double L2_POSITION_ROTATIONS = 16.8; 
-public static final double L3_POSITION_ROTATIONS = 45.02;
+public static final double L2_POSITION_ROTATIONS = 27.3; 
+public static final double L3_POSITION_ROTATIONS = 44.02;
 // TODO: Tune this value for the coral loading position
-public static final double LOADING_POSITION_ROTATIONS = 50.0; 
+public static final double LOADING_POSITION_ROTATIONS = 57.6; 
 
 
 public static final double MANUAL_RAISE_SPEED = 0.4;
@@ -160,8 +160,8 @@ public static final double kMAX_OUTPUT = 0.5;
 
 // TODO: Tune tolerance for Arm atSetpoint() check
 public static final double kPOSITION_TOLERANCE = 0.5;
-public static final double L2_POSITION_ROTATIONS = -14; 
-public static final double L3_POSITION_ROTATIONS = -14;
+public static final double L2_POSITION_ROTATIONS = -15; 
+public static final double L3_POSITION_ROTATIONS = -13;
 public static final double HOME_POSITION_ROTATIONS = 0.0;
 
 // TODO: Tune this value for the coral loading position
