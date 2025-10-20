@@ -82,8 +82,8 @@ public class RobotContainer {
   private final CommandXboxController operatorController = new CommandXboxController(OperatorConstants.OPERATOR_CONTROLLER_PORT);
 
   // Slew rate limiters for smoother driving
-  private final SlewRateLimiter fwdLimiter = new SlewRateLimiter(3.0);
-  private final SlewRateLimiter rotLimiter = new SlewRateLimiter(3.0);
+  private final SlewRateLimiter fwdLimiter = new SlewRateLimiter(1.0);
+  private final SlewRateLimiter rotLimiter = new SlewRateLimiter(1.0);
 
   public RobotContainer() {
     // Instantiate the autonomous commands

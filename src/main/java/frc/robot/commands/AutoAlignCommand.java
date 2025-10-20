@@ -5,7 +5,9 @@ import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -27,6 +29,7 @@ public class AutoAlignCommand extends Command {
 
     private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
+    private final VisionSubsystem visionSubsystem;
     private final ReefState reefState;
 
     private final ProfiledPIDController turnController;
@@ -37,6 +40,7 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
+        this.visionSubsystem = vision;
         this.reefState = reef;
 
         turnController = new ProfiledPIDController(
@@ -56,7 +60,7 @@ public class AutoAlignCommand extends Command {
         );
         driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
         
-        addRequirements(drive, localization);
+        addRequirements(drive, localization, vision);
     }
 
     @Override
@@ -93,13 +97,7 @@ public class AutoAlignCommand extends Command {
         double currentDistance = translationToTarget.getNorm();
         Rotation2d desiredRotation = translationToTarget.getAngle();
 
-        // --- Rotation Control ---
-        double rotationSpeed = turnController.calculate(
-            currentPose.getRotation().getDegrees(),
-            desiredRotation.getDegrees()
-        );
-
-        // --- Translation Control ---
+        // --- Translation Control (calculates a linear velocity in m/s) ---
         double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
 
         // Scale drive speed by how much we're facing the target. This prevents driving sideways.
@@ -107,14 +105,22 @@ public class AutoAlignCommand extends Command {
         double driveScale = Math.cos(angleError);
         // Only drive when generally facing the target
         driveScale = Math.max(0, driveScale);
-
         double finalDriveSpeed = driveSpeed * driveScale;
+        
+        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -1.0, 1.0); // Clamp to a reasonable max speed
 
-        // Apply max speed limits
-        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.5, 0.5);
-        rotationSpeed = MathUtil.clamp(rotationSpeed, -0.5, 0.5);
+        // --- Rotation Control (calculates an angular velocity in deg/s) ---
+        double rotationSpeedDegPerSec = turnController.calculate(
+            currentPose.getRotation().getDegrees(),
+            desiredRotation.getDegrees()
+        );
 
-        driveSubsystem.arcadeDrive(finalDriveSpeed, rotationSpeed);
+        // --- Combine into ChassisSpeeds ---
+        double rotationSpeedRadPerSec = Units.degreesToRadians(rotationSpeedDegPerSec);
+        
+        ChassisSpeeds targetChassisSpeeds = new ChassisSpeeds(finalDriveSpeed, 0, rotationSpeedRadPerSec);
+        
+        driveSubsystem.setChassisSpeeds(targetChassisSpeeds);
 
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
@@ -160,3 +166,4 @@ public class AutoAlignCommand extends Command {
         });
     }
 }
+
