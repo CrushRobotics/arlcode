@@ -34,6 +34,10 @@ public class AutoAlignCommand extends Command {
     private final ProfiledPIDController turnController;
     private final ProfiledPIDController driveController;
 
+    // --- FIX: Make target selection sticky ---
+    // This static variable will hold the ID of the target we are locked onto.
+    // It persists across command restarts until the command is fully ended.
+    private static String lockedTargetId = null;
     private Optional<TargetCost> bestTarget = Optional.empty();
 
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
@@ -63,11 +67,24 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void initialize() {
-        bestTarget = findBestTarget();
-        if (bestTarget.isPresent()) {
-            System.out.println("Auto Align Initialized: Targeting " + bestTarget.get().scoringPose.id);
+        // --- FIX: Logic to lock onto a target ---
+        if (lockedTargetId == null) {
+            // No target is locked, so find the best one now.
+            bestTarget = findBestTarget();
+            if (bestTarget.isPresent()) {
+                lockedTargetId = bestTarget.get().scoringPose.id;
+                System.out.println("Auto Align Initialized: New target locked: " + lockedTargetId);
+            } else {
+                 System.out.println("Auto Align Initialized: No valid targets found.");
+            }
         } else {
-            System.out.println("Auto Align Initialized: No valid targets found.");
+            // A target is already locked, re-acquire it instead of finding a new one.
+            System.out.println("Auto Align Re-initialized: Sticking with locked target: " + lockedTargetId);
+            bestTarget = findTargetById(lockedTargetId);
+            if (bestTarget.isEmpty()) {
+                System.out.println("Could not re-find locked target. Clearing lock.");
+                lockedTargetId = null; // Clear if we can't find it anymore
+            }
         }
     }
 
@@ -104,8 +121,10 @@ public class AutoAlignCommand extends Command {
             desiredRotation.getDegrees()
         );
 
-        // If we are at the setpoint, stop moving to prevent oscillation.
-        if (driveController.atSetpoint() && turnController.atSetpoint()) {
+        // --- Corrected Stopping Logic ---
+        double rotationalErrorDegrees = currentPose.getRotation().minus(desiredRotation).getDegrees();
+
+        if (driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES) {
             driveSubsystem.stop();
             return;
         }
@@ -119,7 +138,7 @@ public class AutoAlignCommand extends Command {
 
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
-        SmartDashboard.putNumber("AutoAlign/RotationError", currentPose.getRotation().getDegrees() - desiredRotation.getDegrees());
+        SmartDashboard.putNumber("AutoAlign/RotationError", rotationalErrorDegrees);
     }
 
     private Optional<TargetCost> findBestTarget() {
@@ -140,15 +159,33 @@ public class AutoAlignCommand extends Command {
         return Optional.of(potentialTargets.get(0));
     }
 
+    // --- NEW METHOD to find a specific target by its ID ---
+    private Optional<TargetCost> findTargetById(String id) {
+        Pose2d currentPose = localizationSubsystem.getPose();
+        double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
+
+        for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
+            if (scoringPose.id.equals(id)) {
+                return AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState);
+            }
+        }
+        return Optional.empty();
+    }
+
+
     @Override
     public boolean isFinished() {
-        // This command runs as long as the button is held, so it never "finishes" on its own.
         return false;
     }
 
     @Override
     public void end(boolean interrupted) {
         driveSubsystem.stop();
+        // --- FIX: Clear the locked target when the command is interrupted (button released) ---
+        if (interrupted) {
+            lockedTargetId = null;
+            System.out.println("Auto Align interrupted. Target lock released.");
+        }
     }
 
     public Command getMarkScoredCommand() {
