@@ -5,6 +5,7 @@ import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPLTVController;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -80,6 +81,10 @@ public class RobotContainer {
   private final CommandXboxController driverController = new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
   private final CommandXboxController operatorController = new CommandXboxController(OperatorConstants.OPERATOR_CONTROLLER_PORT);
 
+  // Slew rate limiters for smoother driving
+  private final SlewRateLimiter fwdLimiter = new SlewRateLimiter(3.0);
+  private final SlewRateLimiter rotLimiter = new SlewRateLimiter(3.0);
+
   public RobotContainer() {
     // Instantiate the autonomous commands
     autoL3Command = new AutoL3Command(
@@ -151,7 +156,7 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // Default drive command with cubic scaling
+    // Default drive command with slew rate limiting and cubic scaling
     driveSubsystem.setDefaultCommand(new RunCommand(
       () -> {
           // Get raw inputs
@@ -162,9 +167,13 @@ public class RobotContainer {
           fwd = MathUtil.applyDeadband(fwd, OperatorConstants.CONTROLLER_DEADZONE);
           rot = MathUtil.applyDeadband(rot, OperatorConstants.CONTROLLER_DEADZONE);
 
+          // Apply slew rate limiting
+          double fwdLimited = fwdLimiter.calculate(fwd);
+          double rotLimited = rotLimiter.calculate(rot);
+
           // Apply cubic curve for finer control
-          double fwdCubic = Math.pow(fwd, 3);
-          double rotCubic = Math.pow(rot, 3);
+          double fwdCubic = Math.pow(fwdLimited, 3);
+          double rotCubic = Math.pow(rotLimited, 3);
 
           driveSubsystem.arcadeDrive(fwdCubic, rotCubic);
       },
