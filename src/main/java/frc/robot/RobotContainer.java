@@ -4,22 +4,17 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPLTVController;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.LimelightHelpers.PoseEstimate;
-import frc.robot.LimelightHelpers.RawFiducial;
 import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
@@ -47,9 +42,6 @@ import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
-
-import java.util.Map;
-import java.util.Optional;
 
 public class RobotContainer {
   // Enum for autonomous modes
@@ -102,38 +94,32 @@ public class RobotContainer {
     simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
 
     // --- PATHPLANNER SETUP ---
-    RobotConfig robotConfig = null; // Initialize to null
+    RobotConfig robotConfig = null; 
     try {
-      // This should work in simulation too, as files in src/main/deploy are available.
       robotConfig = RobotConfig.fromGUISettings();
     } catch (Exception e) {
         System.err.println("CRITICAL ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following will not work.");
         e.printStackTrace();
     }
     
-    // Configure AutoBuilder, but only if the config was loaded successfully.
     if (robotConfig != null) {
       AutoBuilder.configure(
-          localizationSubsystem::getPose, // Robot pose supplier
-          localizationSubsystem::resetPose, // Method to reset odometry
-          driveSubsystem::getChassisSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-          driveSubsystem::setChassisSpeeds, // Method that will drive the robot
-          new PPLTVController(0.02), // PPLTVController is the built in path following controller for differential drive trains
-          robotConfig, // The robot configuration
+          localizationSubsystem::getPose,
+          localizationSubsystem::resetPose,
+          driveSubsystem::getChassisSpeeds,
+          (speeds, ff) -> driveSubsystem.setChassisSpeeds(speeds),
+          new PPLTVController(0.02),
+          robotConfig,
           () -> {
-            // Boolean supplier that controls when the path will be mirrored for the red alliance
             var alliance = DriverStation.getAlliance();
-            if (alliance.isPresent()) {
-              return alliance.get() == DriverStation.Alliance.Red;
-            }
-            return false;
+            return alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
           },
-          driveSubsystem // Reference to this subsystem to set requirements
+          driveSubsystem
       );
-      // ONLY build the chooser if configuration was successful
       pathPlannerChooser = AutoBuilder.buildAutoChooser();
-      SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
+      SmartDashboard.putData("PathPlanner Autos", pathPlannerChooser);
     }
+
 
     // Register all preset commands for use in PathPlanner
     NamedCommands.registerCommand("scoreL3", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
@@ -165,24 +151,25 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // --- SET DEFAULT COMMANDS ---
-    // This is the new command-based teleop driving setup.
-    // It runs constantly by default, but will be interrupted by other commands
-    // that require the driveSubsystem, like AutoAlign or path following.
+    // Default drive command with cubic scaling
     driveSubsystem.setDefaultCommand(new RunCommand(
-        () -> {
-          // Get joystick values
+      () -> {
+          // Get raw inputs
           double fwd = -driverController.getLeftY();
           double rot = -driverController.getRightX();
 
           // Apply deadband
-          fwd = Math.abs(fwd) > OperatorConstants.CONTROLLER_DEADZONE ? fwd : 0.0;
-          rot = Math.abs(rot) > OperatorConstants.CONTROLLER_DEADZONE ? rot : 0.0;
+          fwd = MathUtil.applyDeadband(fwd, OperatorConstants.CONTROLLER_DEADZONE);
+          rot = MathUtil.applyDeadband(rot, OperatorConstants.CONTROLLER_DEADZONE);
 
-          driveSubsystem.arcadeDrive(fwd, rot);
-        }, 
-        driveSubsystem));
-        
+          // Apply cubic curve for finer control
+          double fwdCubic = Math.pow(fwd, 3);
+          double rotCubic = Math.pow(rot, 3);
+
+          driveSubsystem.arcadeDrive(fwdCubic, rotCubic);
+      },
+      driveSubsystem));
+      
     // --- Your Existing Bindings ---
     operatorController.y().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
     operatorController.a().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
@@ -243,47 +230,7 @@ public class RobotContainer {
 
   public void simulationPeriodic() {
       driveSubsystem.simulationPeriodic();
-      
-      Pose2d currentPose = localizationSubsystem.getPose();
-      Optional<Pose3d> closestTagPose = Optional.empty();
-      int closestTagId = -1;
-      double minDistance = Double.MAX_VALUE;
-
-      for (Map.Entry<Integer, Pose3d> entry : FieldConstants.APRIL_TAG_FIELD_LAYOUT.entrySet()) {
-          double distance = entry.getValue().toPose2d().getTranslation().getDistance(currentPose.getTranslation());
-          if (distance < minDistance) {
-              minDistance = distance;
-              closestTagPose = Optional.of(entry.getValue());
-              closestTagId = entry.getKey();
-          }
-      }
-
-      PoseEstimate estimate = null;
-      if (closestTagPose.isPresent() && minDistance < 5.0) {
-          Pose2d tagPose2d = closestTagPose.get().toPose2d();
-          
-          double angleToTag = Math.atan2(tagPose2d.getY() - currentPose.getY(), tagPose2d.getX() - currentPose.getX());
-          double angleDifference = Math.abs(currentPose.getRotation().getRadians() - angleToTag);
-          
-          if (Math.abs(angleDifference) < Units.degreesToRadians(60)) {
-              RawFiducial[] rawFiducials = new RawFiducial[1];
-              rawFiducials[0] = new RawFiducial(closestTagId, 0, 0, 0, minDistance, minDistance, 0.1);
-
-              estimate = new PoseEstimate(
-                  currentPose,
-                  Timer.getFPGATimestamp() - 0.03, // Simulate 30ms latency
-                  30.0,
-                  1,
-                  0,
-                  minDistance,
-                  0,
-                  rawFiducials,
-                  true
-              );
-          }
-      }
-      
-      visionSubsystem.updateSimulatedVisionData(estimate);
+      // Vision has been removed from simulationPeriodic
   }
 }
 

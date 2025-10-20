@@ -49,6 +49,8 @@ public final class Constants {
         public static final double TRACK_WIDTH_METERS = 0.6; // Distance between wheel centers
 
         public static final double WHEEL_CIRCUMFERENCE_METERS = 2 * Math.PI * WHEEL_RADIUS_METERS;
+        public static final double ROTATIONS_TO_METERS = WHEEL_CIRCUMFERENCE_METERS / DRIVE_GEARING;
+
 
         // --- Trajectory Following Constants ---
         // TODO: Use the SysId tool to characterize the drivetrain and find these values.

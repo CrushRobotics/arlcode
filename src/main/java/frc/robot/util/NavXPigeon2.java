@@ -4,6 +4,7 @@ import java.util.function.DoubleSupplier;
 
 import com.kauailabs.navx.frc.AHRS;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.SPI;
 
 /**
@@ -11,12 +12,8 @@ import edu.wpi.first.wpilibj.SPI;
  * common calls
  * used in most codebases: getYaw().getValueAsDouble() and setYaw(...).
  *
- * Notes:
- * - getYaw() returns a "status signal" with getValueAsDouble() for drop-in call
- * sites.
- * - setYaw(deg) zeros yaw then applies an angle adjustment so reported yaw ==
- * deg.
- * - Angles are in degrees (CCW+), matching typical WPILib Rotation2d usage.
+ * NOTE: This wrapper NEGATES the angle from the NavX to conform to the
+ * WPILib standard of Counter-Clockwise (CCW) positive angles.
  */
 public class NavXPigeon2 {
   /** Simple stand-in for Phoenix 6 StatusSignal<Double>. */
@@ -43,6 +40,9 @@ public class NavXPigeon2 {
   private final StatusSignalDouble pitch;
   private final StatusSignalDouble roll;
 
+  // --- SIMULATION ---
+  private double simYawDegrees = 0.0;
+
   /** Construct on MXP (SPI) like most FRC bots. */
   public NavXPigeon2() {
     this(SPI.Port.kMXP);
@@ -54,7 +54,12 @@ public class NavXPigeon2 {
 
   public NavXPigeon2(AHRS ahrs) {
     this.navx = ahrs;
-    yaw = new StatusSignalDouble(() -> navx.getAngle());
+    if (RobotBase.isSimulation()) {
+      yaw = new StatusSignalDouble(() -> simYawDegrees);
+    } else {
+      // THE FIX: Negate the NavX angle to be CCW-positive for WPILib compatibility.
+      yaw = new StatusSignalDouble(() -> -navx.getAngle());
+    }
     pitch = new StatusSignalDouble(() -> navx.getPitch());
     roll = new StatusSignalDouble(() -> navx.getRoll());
   }
@@ -74,8 +79,13 @@ public class NavXPigeon2 {
 
   /** Set reported yaw to the given degrees (zero then offset). */
   public void setYaw(double degrees) {
-    navx.zeroYaw(); // make current reading 0
-    navx.setAngleAdjustment(degrees); // shift to requested heading
+    if (RobotBase.isSimulation()) {
+      this.simYawDegrees = degrees;
+    } else {
+      // We must undo the negation when setting the angle adjustment.
+      navx.zeroYaw(); // make current reading 0
+      navx.setAngleAdjustment(-degrees); // shift to requested heading
+    }
   }
 
   public void setYaw(Rotation2d rot) {
@@ -95,3 +105,4 @@ public class NavXPigeon2 {
     return navx;
   } // optional escape hatch
 }
+
