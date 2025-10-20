@@ -21,6 +21,10 @@ public class VisionSubsystem extends SubsystemBase {
     // We pass in the drive subsystem to get the robot's orientation (from the NavX)
     public VisionSubsystem(CANDriveSubsystem drive) {
         this.driveSubsystem = drive;
+
+        // Ensure Limelight LEDs are on for vision processing.
+        LimelightHelpers.setLEDMode_ForceOn("limelight-right");
+        LimelightHelpers.setLEDMode_ForceOn("limelight-left");
     }
 
     @Override

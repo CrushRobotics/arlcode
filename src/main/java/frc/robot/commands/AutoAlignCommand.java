@@ -29,7 +29,6 @@ public class AutoAlignCommand extends Command {
 
     private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
-    private final VisionSubsystem visionSubsystem;
     private final ReefState reefState;
 
     private final ProfiledPIDController turnController;
@@ -40,7 +39,6 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
-        this.visionSubsystem = vision;
         this.reefState = reef;
 
         turnController = new ProfiledPIDController(
@@ -60,7 +58,7 @@ public class AutoAlignCommand extends Command {
         );
         driveController.setTolerance(AutoAlignConstants.DRIVE_TOLERANCE_METERS);
         
-        addRequirements(drive, localization, vision);
+        addRequirements(drive, localization);
     }
 
     @Override
@@ -68,9 +66,6 @@ public class AutoAlignCommand extends Command {
         bestTarget = findBestTarget();
         if (bestTarget.isPresent()) {
             System.out.println("Auto Align Initialized: Targeting " + bestTarget.get().scoringPose.id);
-            // Reset controllers to current state
-            driveController.reset(localizationSubsystem.getPose().getTranslation().getDistance(bestTarget.get().scoringPose.pose.getTranslation()));
-            turnController.reset(localizationSubsystem.getPose().getRotation().getDegrees());
         } else {
             System.out.println("Auto Align Initialized: No valid targets found.");
         }
@@ -79,12 +74,6 @@ public class AutoAlignCommand extends Command {
     @Override
     public void execute() {
         if (bestTarget.isEmpty()) {
-            driveSubsystem.stop();
-            return;
-        }
-
-        // If we are at the setpoint, stop moving to prevent oscillation.
-        if (driveController.atSetpoint() && turnController.atSetpoint()) {
             driveSubsystem.stop();
             return;
         }
@@ -114,6 +103,12 @@ public class AutoAlignCommand extends Command {
             currentPose.getRotation().getDegrees(),
             desiredRotation.getDegrees()
         );
+
+        // If we are at the setpoint, stop moving to prevent oscillation.
+        if (driveController.atSetpoint() && turnController.atSetpoint()) {
+            driveSubsystem.stop();
+            return;
+        }
 
         // --- Combine into ChassisSpeeds ---
         double rotationSpeedRadPerSec = Units.degreesToRadians(rotationSpeedDegPerSec);

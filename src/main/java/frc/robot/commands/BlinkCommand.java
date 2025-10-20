@@ -19,12 +19,16 @@ public class BlinkCommand extends Command {
         
         if (isBlinking)
         {
-            LimelightHelpers.setLEDMode_ForceOff("");
+            // Set mode for BOTH cameras
+            LimelightHelpers.setLEDMode_ForceOff("limelight-right");
+            LimelightHelpers.setLEDMode_ForceOff("limelight-left");
             isBlinking = false;
         }
         else 
         {
-            LimelightHelpers.setLEDMode_ForceBlink("");
+            // Set mode for BOTH cameras
+            LimelightHelpers.setLEDMode_ForceBlink("limelight-right");
+            LimelightHelpers.setLEDMode_ForceBlink("limelight-left");
             isBlinking = true;
         }
         

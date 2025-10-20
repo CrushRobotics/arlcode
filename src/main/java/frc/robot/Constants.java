@@ -41,8 +41,6 @@ public final class Constants {
         public static final int LEFT_FOLLOWER_ID = 9;
         public static final int RIGHT_LEADER_ID = 7;
         public static final int RIGHT_FOLLOWER_ID = 6;
-
-        // TODO: Accurately measure these values for your robot!
         public static final double DRIVE_GEARING = 8.26; 
         public static final double WHEEL_RADIUS_METERS = Units.inchesToMeters(3.0);
         public static final double TRACK_WIDTH_METERS = 0.264; // Distance between wheel centers
