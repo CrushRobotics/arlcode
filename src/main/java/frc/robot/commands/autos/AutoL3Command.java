@@ -1,4 +1,4 @@
-package frc.robot.commands;
+package frc.robot.commands.autos;
 
 import java.util.Comparator;
 import java.util.List;
@@ -13,6 +13,10 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.Constants.ArmConstants;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.FieldConstants;
+import frc.robot.commands.AutoAlignCommand;
+import frc.robot.commands.CoralIntakeCommand;
+import frc.robot.commands.DriveToPoseCommand;
+import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 import frc.robot.subsystems.CANArmSubsystem;
@@ -94,4 +98,3 @@ private Optional<Pose2d> findClosestPoseFromIds(Pose2d fromPose, List<Integer> t
         ));
 }
 }
-

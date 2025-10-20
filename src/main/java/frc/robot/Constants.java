@@ -33,7 +33,6 @@ public final class Constants {
     public static class OperatorConstants {
         public static final int DRIVER_CONTROLLER_PORT = 0;
         public static final int OPERATOR_CONTROLLER_PORT = 1;
-        // TODO: Adjust deadzone to driver preference
         public static final double CONTROLLER_DEADZONE = 0.2;
     }
 
@@ -82,14 +81,14 @@ public final class Constants {
     }
 
     public static class VelocityPIDConstants {
-        // TODO: These seem redundant with DriveConstants, tune if used separately.
+    //tune if you need- prob not
         public static final double kP = 0.1;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
     }
 
     public static class PIDElevatorConstants {
-        // TODO: These seem redundant with ElevatorConstants, tune if used separately.
+        //tune if you need- prob not
         public static final double P = 0.1;
         public static final double I = 0.0;
         public static final double D = 0.0;
@@ -101,10 +100,6 @@ public final class Constants {
         public static final double MIN_BOUND = -10.0;
         public static final int LEFT_CLIMBER_ID = 27;
         public static final int RIGHT_CLIMBER_ID = 24;
-    }
-
-    public static final class LocalizationConstants {
-        // This has been moved to DriveConstants for better organization.
     }
 
     public static final class AutoAlignConstants {

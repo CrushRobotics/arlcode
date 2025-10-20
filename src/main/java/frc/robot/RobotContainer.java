@@ -2,12 +2,9 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPLTVController;
-import edu.wpi.first.math.MathUtil;
+
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -21,8 +18,6 @@ import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
 import frc.robot.commands.AutoAlignCommand;
-import frc.robot.commands.AutoCommand;
-import frc.robot.commands.AutoL3Command;
 import frc.robot.commands.ClimberClimbCommand;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
@@ -32,6 +27,10 @@ import frc.robot.commands.MoveArmCommand;
 import frc.robot.commands.MoveArmCommand.ArmDirection;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
+import frc.robot.commands.autos.AutoCommand;
+import frc.robot.commands.autos.AutoL2Command;
+import frc.robot.commands.autos.AutoL3Command;
+import frc.robot.commands.autos.L2SimpleCommand;
 import frc.robot.subsystems.CANAlgaeIntakeSubsystem;
 import frc.robot.subsystems.CANAlgaeSubsystem;
 import frc.robot.subsystems.CANArmSubsystem;
@@ -43,12 +42,15 @@ import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
+import com.pathplanner.lib.config.RobotConfig;
 
 public class RobotContainer {
   // Enum for autonomous modes
   private enum AutoMode {
     DO_NOTHING,
+    AUTO_ALIGN_L2_AUTO, // Renamed from AUTO_L2_COMMAND
     L3_AUTO,
+    L2_SIMPLE_AUTO, // Renamed from L2_SIMPLE
     SIMPLE_AUTO_DRIVE,
     PATHPLANNER_AUTO
   }
@@ -73,6 +75,8 @@ public class RobotContainer {
   // The autonomous commands and chooser
   private final Command autoL3Command;
   private final Command simpleAutoDriveCommand;
+  private final Command L2simpleCommand;
+  private final Command autoL2Command;
   private final SendableChooser<AutoMode> autoChooser = new SendableChooser<>();
   private SendableChooser<Command> pathPlannerChooser; 
 
@@ -80,10 +84,10 @@ public class RobotContainer {
   // Controllers
   private final CommandXboxController driverController = new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
   private final CommandXboxController operatorController = new CommandXboxController(OperatorConstants.OPERATOR_CONTROLLER_PORT);
-
+  
   // Slew rate limiters for smoother driving
-  private final SlewRateLimiter fwdLimiter = new SlewRateLimiter(1.0);
-  private final SlewRateLimiter rotLimiter = new SlewRateLimiter(1.0);
+  private final SlewRateLimiter fwdLimiter = new SlewRateLimiter(3.0);
+  private final SlewRateLimiter rotLimiter = new SlewRateLimiter(3.0);
 
   public RobotContainer() {
     // Instantiate the autonomous commands
@@ -98,33 +102,58 @@ public class RobotContainer {
     
     simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
 
-    // --- PATHPLANNER SETUP ---
-    RobotConfig robotConfig = null; 
-    try {
-      robotConfig = RobotConfig.fromGUISettings();
-    } catch (Exception e) {
-        System.err.println("CRITICAL ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following will not work.");
-        e.printStackTrace();
-    }
+    L2simpleCommand = new L2SimpleCommand(
+      driveSubsystem,
+      armSubsystem,
+      elevatorSubsystem,
+      coralIntakeSubsystem
+    );
     
-    if (robotConfig != null) {
-      AutoBuilder.configure(
-          localizationSubsystem::getPose,
-          localizationSubsystem::resetPose,
-          driveSubsystem::getChassisSpeeds,
-          (speeds, ff) -> driveSubsystem.setChassisSpeeds(speeds),
-          new PPLTVController(0.02),
-          robotConfig,
-          () -> {
-            var alliance = DriverStation.getAlliance();
-            return alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
-          },
-          driveSubsystem
+    autoL2Command = new AutoL2Command(
+        driveSubsystem,
+        localizationSubsystem,
+        visionSubsystem,
+        reefState,
+        armSubsystem,
+        elevatorSubsystem,
+        coralIntakeSubsystem
       );
-      pathPlannerChooser = AutoBuilder.buildAutoChooser();
-      SmartDashboard.putData("PathPlanner Autos", pathPlannerChooser);
+
+
+    // --- PATHPLANNER SETUP ---
+     RobotConfig config = null;
+    try{
+      config = RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      // Handle exception as needed
+      e.printStackTrace();
     }
 
+    // Configure AutoBuilder last
+    AutoBuilder.configure(
+            localizationSubsystem::getPose, // Robot pose supplier
+            localizationSubsystem::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
+            driveSubsystem::getChassisSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+            driveSubsystem::setChassisSpeeds, // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds.
+            new PPLTVController(0.02), // PPLTVController is the built in path following controller for differential drive trains
+            config, // The robot configuration
+            () -> {
+              // Boolean supplier that controls when the path will be mirrored for the red alliance
+              // This will flip the path being followed to the red side of the field.
+              // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+
+              var alliance = DriverStation.getAlliance();
+              if (alliance.isPresent()) {
+                return alliance.get() == DriverStation.Alliance.Red;
+              }
+              return false;
+            },
+            driveSubsystem // Reference to this subsystem to set requirements
+    );
+    
+    pathPlannerChooser = AutoBuilder.buildAutoChooser();
+    SmartDashboard.putData("PathPlanner Chooser", pathPlannerChooser);
+    
 
     // Register all preset commands for use in PathPlanner
     NamedCommands.registerCommand("scoreL3", new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
@@ -147,6 +176,8 @@ public class RobotContainer {
 
     // Configure the auto chooser
     autoChooser.setDefaultOption("Do Nothing", AutoMode.DO_NOTHING);
+    autoChooser.addOption("Auto Align and Score L2", AutoMode.AUTO_ALIGN_L2_AUTO);
+    autoChooser.addOption("L2 Simple", AutoMode.L2_SIMPLE_AUTO); 
     autoChooser.addOption("PathPlanner Auto", AutoMode.PATHPLANNER_AUTO);
     autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
     autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
@@ -156,29 +187,29 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // Default drive command with slew rate limiting and cubic scaling
-    driveSubsystem.setDefaultCommand(new RunCommand(
-      () -> {
-          // Get raw inputs
-          double fwd = -driverController.getLeftY();
-          double rot = -driverController.getRightX();
+    // --- Drive Command ---
+    driveSubsystem.setDefaultCommand(
+        new RunCommand(() -> {
+            // Get the joystick inputs
+            double fwd = -driverController.getLeftY();
+            double rot = -driverController.getRightX();
 
-          // Apply deadband
-          fwd = MathUtil.applyDeadband(fwd, OperatorConstants.CONTROLLER_DEADZONE);
-          rot = MathUtil.applyDeadband(rot, OperatorConstants.CONTROLLER_DEADZONE);
+            // Apply deadband
+            if (Math.abs(fwd) < OperatorConstants.CONTROLLER_DEADZONE) fwd = 0;
+            if (Math.abs(rot) < OperatorConstants.CONTROLLER_DEADZONE) rot = 0;
 
-          // Apply slew rate limiting
-          double fwdLimited = fwdLimiter.calculate(fwd);
-          double rotLimited = rotLimiter.calculate(rot);
+            // Apply slew rate limiting
+            fwd = fwdLimiter.calculate(fwd);
+            rot = rotLimiter.calculate(rot);
 
-          // Apply cubic curve for finer control
-          double fwdCubic = Math.pow(fwdLimited, 3);
-          double rotCubic = Math.pow(rotLimited, 3);
+            // Apply cubic scaling for finer control
+            fwd = Math.copySign(fwd * fwd * fwd, fwd);
+            rot = Math.copySign(rot * rot * rot, rot);
+            
+            driveSubsystem.arcadeDrive(fwd, rot);
+        }, driveSubsystem)
+    );
 
-          driveSubsystem.arcadeDrive(fwdCubic, rotCubic);
-      },
-      driveSubsystem));
-      
     // --- Your Existing Bindings ---
     operatorController.y().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
     operatorController.a().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
@@ -220,8 +251,12 @@ public class RobotContainer {
     
     // Return the corresponding command
     switch (selected) {
+      case AUTO_ALIGN_L2_AUTO:
+        return autoL2Command;
       case L3_AUTO:
         return autoL3Command;
+      case L2_SIMPLE_AUTO: 
+        return L2simpleCommand;
       case SIMPLE_AUTO_DRIVE:
         return simpleAutoDriveCommand;
       case PATHPLANNER_AUTO:
@@ -233,13 +268,23 @@ public class RobotContainer {
     }
   }
 
+  // --- SIMULATION METHODS ---
+
+  /**
+   * This method is called once when simulation starts.
+   */
   public void simulationInit() {
-      localizationSubsystem.resetPose(new Pose2d(2.0, 4.0, new Rotation2d(0)));
+      // You can reset the robot to a specific pose at the start of simulation
   }
 
+  /**
+   * This method is called periodically during simulation.
+   */
   public void simulationPeriodic() {
+      // Update the simulated drivetrain
       driveSubsystem.simulationPeriodic();
-      // Vision has been removed from simulationPeriodic
+      
+      // Vision simulation has been removed.
   }
 }
 
