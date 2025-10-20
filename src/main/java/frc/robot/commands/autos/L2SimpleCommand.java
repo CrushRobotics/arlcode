@@ -1,6 +1,8 @@
 package frc.robot.commands.autos;
 
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import frc.robot.Constants.AutoConstants;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
@@ -11,28 +13,25 @@ import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.CANElevatorSubsystem;
 
 /**
- * A simple autonomous command that drives forward for a set time,
- * moves the arm and elevator to the L2 scoring position, and then outtakes the coral.
+ * A simple, time-based autonomous command that drives forward, moves to the L2
+ * scoring position, and outtakes a coral piece.
  */
 public class L2SimpleCommand extends SequentialCommandGroup {
+  public L2SimpleCommand(
+      CANDriveSubsystem drive,
+      CANArmSubsystem arm,
+      CANElevatorSubsystem elevator,
+      CANCoralIntakeSubsystem coralIntake) {
 
-    public L2SimpleCommand(
-        CANDriveSubsystem driveSubsystem,
-        CANArmSubsystem armSubsystem,
-        CANElevatorSubsystem elevatorSubsystem,
-        CANCoralIntakeSubsystem coralIntakeSubsystem
-    ) {
-        addCommands(
-            // 1. Drive forward for a set amount of time using the existing AutoCommand
-            new AutoCommand(driveSubsystem),
+    addCommands(
+        // 1. Drive forward for a set duration
+        new RunCommand(() -> drive.arcadeDrive(AutoConstants.AUTO_DRIVE_SPEED, 0), drive).withTimeout(AutoConstants.AUTO_DRIVE_SECONDS),
 
-            // 2. Move the arm and elevator to the L2 scoring position
-            new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L2),
+        // 2. Move arm and elevator to L2 position
+        new SetScoringPositionCommand(arm, elevator, ScoringLevel.L2),
 
-            // 3. Run the coral intake downwards to score the piece.
-            //    withTimeout(1.5) will make it run for 1.5 seconds and then stop.
-            new CoralIntakeCommand(coralIntakeSubsystem, CoralIntakeDirection.Down).withTimeout(1.5)
-        );
-    }
+        // 3. Outtake the coral for 1 second
+        new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0)
+    );
+  }
 }
-
