@@ -64,10 +64,7 @@ public class DriveToPoseCommand extends Command {
         driveSpeed = Math.max(-0.6, Math.min(0.6, driveSpeed));
         turnSpeed = Math.max(-0.6, Math.min(0.6, turnSpeed));
 
-        // THE FIX: With a consistent CCW-positive coordinate system from the gyro
-        // to the drive method, we no longer need to negate the turn speed. The PID
-        // output now correctly maps to the desired motor behavior.
-        driveSubsystem.drive(driveSpeed, turnSpeed);
+        driveSubsystem.arcadeDrive(driveSpeed, turnSpeed);
     }
 
     @Override
@@ -81,7 +78,6 @@ public class DriveToPoseCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         // Stop the drive motors when the command ends
-        driveSubsystem.drive(0, 0);
+        driveSubsystem.stop();
     }
 }
-

@@ -75,13 +75,13 @@ public class AutoAlignCommand extends Command {
     @Override
     public void execute() {
         if (bestTarget.isEmpty()) {
-            driveSubsystem.drive(0, 0);
+            driveSubsystem.stop();
             return;
         }
 
         // If we are at the setpoint, stop moving to prevent oscillation.
         if (driveController.atSetpoint() && turnController.atSetpoint()) {
-            driveSubsystem.drive(0, 0);
+            driveSubsystem.stop();
             return;
         }
 
@@ -114,7 +114,7 @@ public class AutoAlignCommand extends Command {
         finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.5, 0.5);
         rotationSpeed = MathUtil.clamp(rotationSpeed, -0.5, 0.5);
 
-        driveSubsystem.drive(finalDriveSpeed, rotationSpeed);
+        driveSubsystem.arcadeDrive(finalDriveSpeed, rotationSpeed);
 
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
@@ -124,7 +124,7 @@ public class AutoAlignCommand extends Command {
     private Optional<TargetCost> findBestTarget() {
         List<TargetCost> potentialTargets = new ArrayList<>();
         Pose2d currentPose = localizationSubsystem.getPose();
-        double velocity = driveSubsystem.getForwardVelocityMetersPerSec();
+        double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
 
         for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
             AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
@@ -147,7 +147,7 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        driveSubsystem.drive(0, 0);
+        driveSubsystem.stop();
     }
 
     public Command getMarkScoredCommand() {

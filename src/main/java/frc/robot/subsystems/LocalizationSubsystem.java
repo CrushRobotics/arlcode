@@ -8,7 +8,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
-import frc.robot.Constants.LocalizationConstants;
+import frc.robot.Constants.DriveConstants;
 
 /**
  * The LocalizationSubsystem is responsible for fusing sensor data from the
@@ -24,7 +24,7 @@ public class LocalizationSubsystem extends SubsystemBase {
     private final DifferentialDrivePoseEstimator poseEstimator;
     private final Field2d field = new Field2d();
 
-    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(LocalizationConstants.TRACK_WIDTH_METERS);
+    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(DriveConstants.TRACK_WIDTH_METERS);
 
     public LocalizationSubsystem(CANDriveSubsystem drive, VisionSubsystem vision) {
         this.driveSubsystem = drive;
@@ -105,4 +105,3 @@ public class LocalizationSubsystem extends SubsystemBase {
             newPose);
     }
 }
-

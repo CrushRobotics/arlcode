@@ -161,13 +161,28 @@ public class RobotContainer {
     autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
     SmartDashboard.putData("Auto Chooser", autoChooser);
 
-    // Add a default command for the localization subsystem to ensure its periodic method is called
-    localizationSubsystem.setDefaultCommand(new RunCommand(() -> {}, localizationSubsystem));
-
     configureBindings();
   }
 
   private void configureBindings() {
+    // --- SET DEFAULT COMMANDS ---
+    // This is the new command-based teleop driving setup.
+    // It runs constantly by default, but will be interrupted by other commands
+    // that require the driveSubsystem, like AutoAlign or path following.
+    driveSubsystem.setDefaultCommand(new RunCommand(
+        () -> {
+          // Get joystick values
+          double fwd = -driverController.getLeftY();
+          double rot = -driverController.getRightX();
+
+          // Apply deadband
+          fwd = Math.abs(fwd) > OperatorConstants.CONTROLLER_DEADZONE ? fwd : 0.0;
+          rot = Math.abs(rot) > OperatorConstants.CONTROLLER_DEADZONE ? rot : 0.0;
+
+          driveSubsystem.arcadeDrive(fwd, rot);
+        }, 
+        driveSubsystem));
+        
     // --- Your Existing Bindings ---
     operatorController.y().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
     operatorController.a().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
@@ -222,30 +237,18 @@ public class RobotContainer {
     }
   }
 
-  // --- SIMULATION METHODS ---
-
-  /**
-   * This method is called once when simulation starts.
-   */
   public void simulationInit() {
-      // You can reset the robot to a specific pose at the start of simulation
       localizationSubsystem.resetPose(new Pose2d(2.0, 4.0, new Rotation2d(0)));
   }
 
-  /**
-   * This method is called periodically during simulation.
-   */
   public void simulationPeriodic() {
-      // Update the simulated drivetrain
       driveSubsystem.simulationPeriodic();
       
-      // --- Simulate Vision Data ---
       Pose2d currentPose = localizationSubsystem.getPose();
       Optional<Pose3d> closestTagPose = Optional.empty();
       int closestTagId = -1;
       double minDistance = Double.MAX_VALUE;
 
-      // Find the closest AprilTag to the robot
       for (Map.Entry<Integer, Pose3d> entry : FieldConstants.APRIL_TAG_FIELD_LAYOUT.entrySet()) {
           double distance = entry.getValue().toPose2d().getTranslation().getDistance(currentPose.getTranslation());
           if (distance < minDistance) {
@@ -256,17 +259,13 @@ public class RobotContainer {
       }
 
       PoseEstimate estimate = null;
-      // If a tag is found and within a reasonable distance...
-      if (closestTagPose.isPresent() && minDistance < 5.0) { // Simulate seeing tags within 5 meters
+      if (closestTagPose.isPresent() && minDistance < 5.0) {
           Pose2d tagPose2d = closestTagPose.get().toPose2d();
           
-          // Check if the robot is generally facing the tag (e.g., within a 120-degree FOV)
           double angleToTag = Math.atan2(tagPose2d.getY() - currentPose.getY(), tagPose2d.getX() - currentPose.getX());
           double angleDifference = Math.abs(currentPose.getRotation().getRadians() - angleToTag);
           
           if (Math.abs(angleDifference) < Units.degreesToRadians(60)) {
-               // Create a "perfect" pose estimate based on the robot's actual simulated pose
-               // In a real scenario, this would come from the Limelight with some noise.
               RawFiducial[] rawFiducials = new RawFiducial[1];
               rawFiducials[0] = new RawFiducial(closestTagId, 0, 0, 0, minDistance, minDistance, 0.1);
 
@@ -284,7 +283,6 @@ public class RobotContainer {
           }
       }
       
-      // Update the vision subsystem with the simulated data (or null if no target is seen)
       visionSubsystem.updateSimulatedVisionData(estimate);
   }
 }

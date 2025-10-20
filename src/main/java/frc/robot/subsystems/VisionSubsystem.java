@@ -31,7 +31,7 @@ public class VisionSubsystem extends SubsystemBase {
         }
 
         // This is required for MegaTag2 to work with an external IMU (like the NavX).
-        double heading = driveSubsystem.getHeading();
+        double heading = driveSubsystem.getRotation2d().getDegrees();
         // Send robot orientation to BOTH Limelights
         LimelightHelpers.SetRobotOrientation("limelight-right", heading, 0, 0, 0, 0, 0);
         LimelightHelpers.SetRobotOrientation("limelight-left", heading, 0, 0, 0, 0, 0);
