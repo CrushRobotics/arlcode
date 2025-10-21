@@ -109,14 +109,14 @@ public final class Constants {
 
         // TODO: Tune this distance. Once the robot is closer than this to the target,
         // it will stop using vision and rely on odometry to finish the approach.
-        public static final double FINAL_APPROACH_DISTANCE_METERS = 1.5;
+        public static final double FINAL_APPROACH_DISTANCE_METERS = 0.5;
 
         // TODO: Tune this distance. When farther than this, the robot will prioritize
         // pointing towards the target. When closer, it will prioritize the final angle.
-        public static final double ROTATION_SWAP_DISTANCE_METERS = 2.0;
+        public static final double ROTATION_SWAP_DISTANCE_METERS = 1.0;
 
         // TODO: Tune the desired distance the robot should be from the target when aligned.
-        public static final double DESIRED_DISTANCE_METERS = 1.0;
+        public static final double DESIRED_DISTANCE_METERS = 0.5;
 
         // TODO: Tune the weights for the alignment cost function.
         public static final double DISTANCE_WEIGHT = 1.5;
