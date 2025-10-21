@@ -97,7 +97,7 @@ public final class Constants {
 
     public static final class AutoAlignConstants {
         // TODO: Tune these PID constants for the AutoAlign command
-        public static final double kP_TURN = 0.4;
+        public static final double kP_TURN = 0.6;
         public static final double kI_TURN = 0.1;
         public static final double kD_TURN = 0.1;
         public static final double TURN_TOLERANCE_DEGREES = 2.0;
@@ -222,21 +222,19 @@ public final class Constants {
          * A list of all possible scoring locations, without pre-calculated poses.
          * The pose is determined dynamically based on the current alliance.
          */
-        public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream().flatMap(tagId -> 
-            Stream.of(
-                new ScoringPose(tagId, tagId + "_LEFT"), 
-                new ScoringPose(tagId, tagId + "_RIGHT")
-            )
-        ).collect(Collectors.toList());
+        public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream()
+            .map(tagId -> new ScoringPose(tagId, String.valueOf(tagId)))
+            .collect(Collectors.toList());
 
         /**
-         * Calculates the desired field-relative robot pose to align with a specific scoring pipe.
-         * @param scoringPoseInfo The semantic information about the target (tag, side, etc.).
+         * Calculates the desired field-relative robot pose to align with the closer of two pipes.
+         * @param scoringPoseInfo The semantic information about the target tag.
          * @param alliance The current alliance color.
          * @param mode The alignment mode (SCORING or COLLECTING), which determines robot orientation.
+         * @param currentRobotPose The robot's current pose, used to determine the closer pipe.
          * @return An Optional containing the calculated Pose2d, or empty if the tag ID is invalid.
          */
-        public static Optional<Pose2d> getFieldRelativePose(ScoringPose scoringPoseInfo, Alliance alliance, AlignMode mode) {
+        public static Optional<Pose2d> getFieldRelativePose(ScoringPose scoringPoseInfo, Alliance alliance, AlignMode mode, Pose2d currentRobotPose) {
             Pose3d tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(scoringPoseInfo.parentTagId);
             if (tagPose3d == null) return Optional.empty();
 
@@ -257,15 +255,21 @@ public final class Constants {
                 : new Translation2d(AutoAlignConstants.DESIRED_DISTANCE_METERS, 0);
             Translation2d stopPoint = tagTranslation.plus(forwardOffset);
     
-            // 3. Calculate the lateral offset for the specific pipe
+            // 3. Calculate poses for BOTH left and right pipes
             Rotation2d lateralDirection = (alliance == Alliance.Red) ? Rotation2d.fromDegrees(-90) : Rotation2d.fromDegrees(90);
-            double lateralOffsetDistance = scoringPoseInfo.id.contains("LEFT") ? PEG_OFFSET_METERS : -PEG_OFFSET_METERS;
             
-            Translation2d lateralOffset = new Translation2d(lateralOffsetDistance, 0).rotateBy(lateralDirection);
-            Translation2d finalStopPoint = stopPoint.plus(lateralOffset);
-            
-            // 4. Combine final position and orientation
-            return Optional.of(new Pose2d(finalStopPoint, targetRobotRotation));
+            Translation2d leftLateralOffset = new Translation2d(PEG_OFFSET_METERS, 0).rotateBy(lateralDirection);
+            Translation2d rightLateralOffset = new Translation2d(-PEG_OFFSET_METERS, 0).rotateBy(lateralDirection);
+
+            Pose2d leftPose = new Pose2d(stopPoint.plus(leftLateralOffset), targetRobotRotation);
+            Pose2d rightPose = new Pose2d(stopPoint.plus(rightLateralOffset), targetRobotRotation);
+
+            // 4. Determine which pose is closer to the robot's current position
+            double distToLeft = currentRobotPose.getTranslation().getDistance(leftPose.getTranslation());
+            double distToRight = currentRobotPose.getTranslation().getDistance(rightPose.getTranslation());
+
+            // 5. Return the closer pose
+            return Optional.of(distToLeft < distToRight ? leftPose : rightPose);
         }
     }
 
