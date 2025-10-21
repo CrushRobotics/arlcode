@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "DriveToFront"
+            "pathName": "L3_Score"
           }
         },
         {
@@ -17,33 +17,27 @@
           }
         },
         {
-          "type": "path",
-          "data": {
-            "pathName": "CollectFront"
-          }
-        },
-        {
           "type": "named",
           "data": {
-            "name": "autoAlign"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "ScoreLoading"
+            "name": "outtakeCoral"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "SL3_Score"
+            "pathName": "L3_Collect"
           }
         },
         {
           "type": "named",
           "data": {
-            "name": "scoreL2"
+            "name": "intakeCoral"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "IntakeReturn"
           }
         }
       ]

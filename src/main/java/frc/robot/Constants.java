@@ -69,13 +69,9 @@ public final class Constants {
     }
 
     public static class PIDConstants {
-        // TODO: These are generic and may need tuning if used.
         public static final double P = 0.1;
         public static final double I = 0.0;
         public static final double D = 0.0;
-
-        // This kP is for the old AutoAlign command and can be removed or reused.
-        public static final double kP_AUTO_ALIGN = 0.05;
     }
 
     public static class VelocityPIDConstants {
@@ -129,21 +125,13 @@ public final class Constants {
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.3;
-
-        // TODO: Tune Min/Max output for Elevator PID controller
         public static final double kMIN_OUTPUT = -0.7;
         public static final double kMAX_OUTPUT = 0.7;
-
-        // TODO: Tune tolerance for Elevator atSetpoint() check
         public static final double kPOSITION_TOLERANCE = 0.5;
-
-        // TODO: Tune these preset positions for scoring.
         public static final double L2_POSITION_ROTATIONS = 27.3;
         public static final double L3_POSITION_ROTATIONS = 44.02;
-        // TODO: Tune this value for the coral loading position
         public static final double LOADING_POSITION_ROTATIONS = 57.6; 
-
-        // TODO: Tune manual control speeds.
+        //elevator speeds
         public static final double MANUAL_RAISE_SPEED = 0.4;
         public static final double MANUAL_LOWER_SPEED = -0.3;
     }
@@ -166,28 +154,19 @@ public final class Constants {
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.2;
-
-        // TODO: Tune Min/Max output for Arm PID controller
         public static final double kMIN_OUTPUT = -0.5;
         public static final double kMAX_OUTPUT = 0.5;
-
-        // TODO: Tune tolerance for Arm atSetpoint() check
         public static final double kPOSITION_TOLERANCE = 0.5;
-
-        // TODO: Tune these preset positions.
+//arm positions angle
         public static final double L2_POSITION_ROTATIONS = -15;
         public static final double L3_POSITION_ROTATIONS = -13;
         public static final double HOME_POSITION_ROTATIONS = 0.0;
-        // TODO: Tune this value for the coral loading position
         public static final double LOADING_POSITION_ROTATIONS = 50.0;
-
-        // TODO: Tune manual arm speed.
         public static final double MANUAL_ARM_SPEED = 0.5;
     }
     public static final class CoralIntakeConstants {
         public static final int CORAL_INTAKE_ID = 16;
-        // TODO: Tune coral intake speed.
-        public static final double CORAL_INTAKE_SPEED = 0.5;
+        public static final double CORAL_INTAKE_SPEED = 0.6;
     }
     public static final class LedConstants {
         public static final int LED_PORT = 5;
