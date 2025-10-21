@@ -5,7 +5,6 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.Constants.AutoAlignConstants;
 import frc.robot.Constants.VisionConstants.ScoringPose;
-import java.util.Optional;
 
 /**
  * A utility class to calculate the "cost" of aligning to a specific scoring pose.
@@ -16,14 +15,16 @@ import java.util.Optional;
 public final class AlignmentCostUtil {
 
     /**
-     * Represents a potential alignment target with its associated cost.
+     * Represents a potential alignment target with its associated cost and dynamically calculated pose.
      */
     public static class TargetCost implements Comparable<TargetCost> {
         public final ScoringPose scoringPose;
+        public final Pose2d targetPose;
         public final double cost;
 
-        public TargetCost(ScoringPose scoringPose, double cost) {
+        public TargetCost(ScoringPose scoringPose, Pose2d targetPose, double cost) {
             this.scoringPose = scoringPose;
+            this.targetPose = targetPose;
             this.cost = cost;
         }
 
@@ -36,16 +37,15 @@ public final class AlignmentCostUtil {
     /**
      * Calculates the total cost for aligning to a specific scoring pose.
      *
-     * @param scoringPose   The scoring pose to evaluate.
+     * @param scoringPose   The semantic information about the scoring pose to evaluate.
+     * @param targetPose    The dynamically calculated, field-relative pose for the robot to align to.
      * @param currentPose   The current pose of the robot.
      * @param robotVelocity The current forward velocity of the robot in m/s.
      * @param reefState     The current state of scored targets.
-     * @return An Optional containing the TargetCost.
+     * @return A TargetCost object containing the original info, the calculated pose, and the total cost.
      */
-    public static Optional<TargetCost> calculateCost(ScoringPose scoringPose, Pose2d currentPose, double robotVelocity, ReefState reefState) {
+    public static TargetCost calculateCost(ScoringPose scoringPose, Pose2d targetPose, Pose2d currentPose, double robotVelocity, ReefState reefState) {
         
-        Pose2d targetPose = scoringPose.pose;
-
         double distanceCost = calculateDistanceCost(currentPose, targetPose);
         double driveCost = calculateDriveDirectionCost(currentPose, targetPose, robotVelocity);
         double reefCost = calculateReefStateCost(scoringPose.id, reefState);
@@ -54,7 +54,7 @@ public final class AlignmentCostUtil {
                            (driveCost * AutoAlignConstants.DRIVE_DIRECTION_WEIGHT) + 
                            (reefCost * AutoAlignConstants.REEF_STATE_WEIGHT);
 
-        return Optional.of(new TargetCost(scoringPose, totalCost));
+        return new TargetCost(scoringPose, targetPose, totalCost);
     }
 
     private static double calculateDistanceCost(Pose2d currentPose, Pose2d targetPose) {

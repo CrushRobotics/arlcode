@@ -6,6 +6,7 @@ package frc.robot;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,17 +19,16 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 
 /**
-
-The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
-constants. This class should not be used for any other purpose. All constants should be declared
-globally (i.e. public static). Do not put anything functional in this class.
-It is advised to statically import this class (or one of its inner classes) wherever the
-
-constants are needed, to reduce verbosity.
-*/
+ * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
+ * constants. This class should not be used for any other purpose. All constants should be declared
+ * globally (i.e. public static). Do not put anything functional in this class.
+ * It is advised to statically import this class (or one of its inner classes) wherever the
+ * constants are needed, to reduce verbosity.
+ */
 public final class Constants {
     public static class OperatorConstants {
         public static final int DRIVER_CONTROLLER_PORT = 0;
@@ -51,7 +51,6 @@ public final class Constants {
 
         // --- Trajectory Following Constants ---
         // TODO: Use the SysId tool to characterize the drivetrain and find these values.
-        // See: https://docs.wpilib.org/en/stable/docs/software/pathplanning/trajectory-tutorial/characterizing-drive.html
         public static final double kS = 0.1; // Volts
         public static final double kV = 2.0; // Volt-seconds per meter
         public static final double kA = 0.2; // Volt-seconds-squared per meter
@@ -128,6 +127,7 @@ public final class Constants {
         public static final double kMIN_OUTPUT = -0.7;
         public static final double kMAX_OUTPUT = 0.7;
         public static final double kPOSITION_TOLERANCE = 0.5;
+        // TODO: Tune these preset positions.
         public static final double L2_POSITION_ROTATIONS = 27.3;
         public static final double L3_POSITION_ROTATIONS = 44.02;
         public static final double LOADING_POSITION_ROTATIONS = 57.6; 
@@ -157,7 +157,7 @@ public final class Constants {
         public static final double kMIN_OUTPUT = -0.5;
         public static final double kMAX_OUTPUT = 0.5;
         public static final double kPOSITION_TOLERANCE = 0.5;
-//arm positions angle
+        // TODO: Tune these preset positions.
         public static final double L2_POSITION_ROTATIONS = -15;
         public static final double L3_POSITION_ROTATIONS = -13;
         public static final double HOME_POSITION_ROTATIONS = 0.0;
@@ -166,6 +166,7 @@ public final class Constants {
     }
     public static final class CoralIntakeConstants {
         public static final int CORAL_INTAKE_ID = 16;
+        // TODO: Tune intake speed.
         public static final double CORAL_INTAKE_SPEED = 0.6;
     }
     public static final class LedConstants {
@@ -173,13 +174,15 @@ public final class Constants {
         public static final int LED_LENGTH = 142;
     }
     public static final class VisionConstants {
+        /**
+         * Represents the information needed to identify a scoring target.
+         * The actual Pose2d is calculated dynamically based on alliance.
+         */
         public static class ScoringPose {
-            public final Pose2d pose;
             public final int parentTagId;
             public final String id;
             public final ScoringLevel level;
-            public ScoringPose(Pose2d pose, int parentTagId, String id, ScoringLevel level) {
-                this.pose = pose;
+            public ScoringPose(int parentTagId, String id, ScoringLevel level) {
                 this.parentTagId = parentTagId;
                 this.id = id;
                 this.level = level;
@@ -195,44 +198,53 @@ public final class Constants {
 
         private static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22);
         
-        public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream().flatMap(tagId -> {
-            var tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(tagId);
-            if (tagPose3d == null) {
-                return Stream.empty();
-            }
-            Pose2d tagPose = tagPose3d.toPose2d();
+        /**
+         * A list of all possible scoring locations, without pre-calculated poses.
+         * The pose is determined dynamically based on the current alliance.
+         */
+        public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream().flatMap(tagId -> 
+            Stream.of(
+                new ScoringPose(tagId, tagId + "_L2_LEFT", ScoringLevel.L2), 
+                new ScoringPose(tagId, tagId + "_L2_RIGHT", ScoringLevel.L2), 
+                new ScoringPose(tagId, tagId + "_L3_LEFT", ScoringLevel.L3), 
+                new ScoringPose(tagId, tagId + "_L3_RIGHT", ScoringLevel.L3)
+            )
+        ).collect(Collectors.toList());
+
+        /**
+         * Calculates the desired field-relative robot pose to align with a specific scoring pipe.
+         * @param scoringPoseInfo The semantic information about the target (tag, side, etc.).
+         * @param alliance The current alliance color.
+         * @return An Optional containing the calculated Pose2d, or empty if the tag ID is invalid.
+         */
+        public static Optional<Pose2d> getFieldRelativePose(ScoringPose scoringPoseInfo, Alliance alliance) {
+            Pose3d tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(scoringPoseInfo.parentTagId);
+            if (tagPose3d == null) return Optional.empty();
     
-            // The direction the robot should face to be square with the tag
-            Rotation2d robotRotation = tagPose.getRotation().plus(Rotation2d.fromDegrees(180));
+            // Alliance determines the final orientation and offset directions
+            Rotation2d targetRobotRotation = (alliance == Alliance.Red) ? new Rotation2d() : Rotation2d.fromDegrees(180);
     
-            // The base point for the robot, DESIRED_DISTANCE_METERS away from the tag's center
-            Translation2d baseStopPoint = tagPose.getTranslation().plus(
-                new Translation2d(AutoAlignConstants.DESIRED_DISTANCE_METERS, 0).rotateBy(robotRotation)
-            );
+            // Start with the tag's position
+            Translation2d tagTranslation = tagPose3d.toPose2d().getTranslation();
+            
+            // 1. Calculate the point directly in front of the tag
+            Translation2d forwardOffset = (alliance == Alliance.Red)
+                ? new Translation2d(-AutoAlignConstants.DESIRED_DISTANCE_METERS, 0)
+                : new Translation2d(AutoAlignConstants.DESIRED_DISTANCE_METERS, 0);
+            Translation2d stopPoint = tagTranslation.plus(forwardOffset);
     
-            // The direction for lateral offsets (along the wall, to the tag's left)
-            Rotation2d lateralDirection = tagPose.getRotation().plus(Rotation2d.fromDegrees(90));
-    
-            // Calculate final stop points for left and right pegs by applying the lateral offset
-            Translation2d leftPegStopPoint = baseStopPoint.plus(
-                new Translation2d(PEG_OFFSET_METERS, 0).rotateBy(lateralDirection)
-            );
-            Translation2d rightPegStopPoint = baseStopPoint.plus(
-                new Translation2d(-PEG_OFFSET_METERS, 0).rotateBy(lateralDirection)
-            );
-    
-            // Create the final Pose2d objects for the robot's target position and orientation
-            Pose2d leftPegPose = new Pose2d(leftPegStopPoint, robotRotation);
-            Pose2d rightPegPose = new Pose2d(rightPegStopPoint, robotRotation);
-    
-            return Stream.of(
-                new ScoringPose(leftPegPose, tagId, tagId + "_L2_LEFT", ScoringLevel.L2), 
-                new ScoringPose(rightPegPose, tagId, tagId + "_L2_RIGHT", ScoringLevel.L2), 
-                new ScoringPose(leftPegPose, tagId, tagId + "_L3_LEFT", ScoringLevel.L3), 
-                new ScoringPose(rightPegPose, tagId, tagId + "_L3_RIGHT", ScoringLevel.L3)
-            );
-        }).collect(Collectors.toList());
+            // 2. Calculate the lateral offset for the specific pipe
+            Rotation2d lateralDirection = (alliance == Alliance.Red) ? Rotation2d.fromDegrees(-90) : Rotation2d.fromDegrees(90);
+            double lateralOffsetDistance = scoringPoseInfo.id.contains("LEFT") ? PEG_OFFSET_METERS : -PEG_OFFSET_METERS;
+            
+            Translation2d lateralOffset = new Translation2d(lateralOffsetDistance, 0).rotateBy(lateralDirection);
+            Translation2d finalStopPoint = stopPoint.plus(lateralOffset);
+            
+            // 3. Combine final position and orientation
+            return Optional.of(new Pose2d(finalStopPoint, targetRobotRotation));
+        }
     }
+
     // TODO: Tune these tolerances for the drive to pose command.
     public static final class AutoConstants {
         public static final double kP_DRIVE_TO_POSE = 1.2;
@@ -251,7 +263,7 @@ public final class Constants {
     public static final class FieldConstants {
         public static final double FIELD_LENGTH_METERS = 16.51;
         public static final double FIELD_WIDTH_METERS = 8.2296;
-
+        //relative to blue alliance origin
         public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
             Map.entry(1, new Pose3d(15.5138, 1.0716, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(120)))),
             Map.entry(2, new Pose3d(16.204, 3.002, 0.6955, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
@@ -261,20 +273,22 @@ public final class Constants {
             Map.entry(6, new Pose3d(0.306, 3.002, 0.6955, new Rotation3d(0, 0, 0))),
             Map.entry(7, new Pose3d(0.306, 4.983, 0.6955, new Rotation3d(0, 0, 0))),
             Map.entry(8, new Pose3d(0.9964, 6.9144, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(300)))),
-            Map.entry(9, new Pose3d(13.5905, 7.4994, 0.4636, new Rotation3d(0, 0, 0))),
-            Map.entry(10, new Pose3d(14.6827, 5.5055, 0.4636, new Rotation3d(0, 0, 0))),
-            Map.entry(11, new Pose3d(13.5905, 3.5116, 0.4636, new Rotation3d(0, 0, 0))),
+            Map.entry(9, new Pose3d(13.5905, 7.4994, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+            Map.entry(10, new Pose3d(14.6827, 5.5055, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+            Map.entry(11, new Pose3d(13.5905, 3.5116, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
             Map.entry(12, new Pose3d(16.1671, 3.5116, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(60)))),
-            Map.entry(13, new Pose3d(2.9195, 7.4994, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-            Map.entry(14, new Pose3d(1.8273, 5.5055, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-            Map.entry(15, new Pose3d(2.9195, 3.5116, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+            Map.entry(13, new Pose3d(2.9195, 7.4994, 0.4636, new Rotation3d(0, 0, 0))),
+            Map.entry(14, new Pose3d(1.8273, 5.5055, 0.4636, new Rotation3d(0, 0, 0))),
+            Map.entry(15, new Pose3d(2.9195, 3.5116, 0.4636, new Rotation3d(0, 0, 0))),
             Map.entry(16, new Pose3d(0.3429, 3.5116, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(120)))),
-            Map.entry(17, new Pose3d(10.2934, 3.9942, 0.8733, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
-            Map.entry(18, new Pose3d(8.3058, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90)))),
-            Map.entry(19, new Pose3d(8.3058, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270)))),
-            Map.entry(20, new Pose3d(6.2167, 3.9942, 0.8733, new Rotation3d(0, 0, 0))),
-            Map.entry(21, new Pose3d(8.2042, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90)))),
-            Map.entry(22, new Pose3d(8.2042, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270))))
+            Map.entry(17, new Pose3d(10.2934, 3.9942, 0.8733, new Rotation3d(0, 0, 0))),
+            Map.entry(18, new Pose3d(8.3058, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270)))),
+            Map.entry(19, new Pose3d(8.3058, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90)))),
+            Map.entry(20, new Pose3d(6.2167, 3.9942, 0.8733, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
+            Map.entry(21, new Pose3d(8.2042, 7.728, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(270)))),
+            Map.entry(22, new Pose3d(8.2042, 0.2604, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(90))))
         );
     }
 }
+
+

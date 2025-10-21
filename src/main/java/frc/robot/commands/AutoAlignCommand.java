@@ -8,6 +8,8 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -83,6 +85,16 @@ public class AutoAlignCommand extends Command {
                 lockedTargetId = null; 
             }
         }
+
+        // Reset the PID controllers with the current measurements
+        Pose2d currentPose = localizationSubsystem.getPose();
+        if (bestTarget.isPresent()) {
+            double initialDistance = bestTarget.get().targetPose.getTranslation().minus(currentPose.getTranslation()).getNorm();
+            driveController.reset(initialDistance);
+        } else {
+            driveController.reset(0);
+        }
+        turnController.reset(currentPose.getRotation().getDegrees());
     }
 
     @Override
@@ -93,21 +105,16 @@ public class AutoAlignCommand extends Command {
         }
     
         Pose2d currentPose = localizationSubsystem.getPose();
-        Pose2d targetPose = bestTarget.get().scoringPose.pose;
+        // The target pose is now dynamically calculated and stored in our bestTarget object
+        Pose2d targetPose = bestTarget.get().targetPose;
         
         // --- Translation Control ---
-        // Vector from where we are to where we want to be.
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
         double currentDistance = translationToTarget.getNorm();
-        
-        // Calculate the drive speed to close the distance to the target point. Setpoint is 0.
         double driveSpeed = -driveController.calculate(currentDistance, 0);
         
         // --- Rotation Control ---
-        // The desired final rotation is now defined in the ScoringPose.
         Rotation2d desiredRotation = targetPose.getRotation();
-    
-        // Calculate the turn speed to achieve the desired final rotation.
         double rotationSpeedDegPerSec = turnController.calculate(
             currentPose.getRotation().getDegrees(),
             desiredRotation.getDegrees()
@@ -121,8 +128,6 @@ public class AutoAlignCommand extends Command {
         }
         
         // --- Command Motors ---
-        // Scale forward speed so the robot doesn't try to drive sideways.
-        // It will only drive forward when facing the direction of travel.
         Rotation2d travelDirection = translationToTarget.getAngle();
         double angleError = currentPose.getRotation().minus(travelDirection).getRadians();
         double driveScale = Math.cos(angleError);
@@ -132,7 +137,6 @@ public class AutoAlignCommand extends Command {
     
         double rotationSpeedRadPerSec = Units.degreesToRadians(rotationSpeedDegPerSec);
         
-        // We can't command a sideways velocity with differential drive, so vy is 0.
         ChassisSpeeds targetChassisSpeeds = new ChassisSpeeds(finalDriveSpeed, 0, rotationSpeedRadPerSec);
         driveSubsystem.setChassisSpeeds(targetChassisSpeeds);
     
@@ -142,8 +146,14 @@ public class AutoAlignCommand extends Command {
     }
 
     private Optional<TargetCost> findBestTarget() {
-        Set<Integer> visibleTagIds = visionSubsystem.getVisibleTagIds();
+        Optional<Alliance> allianceOpt = DriverStation.getAlliance();
+        if (allianceOpt.isEmpty()) {
+            System.out.println("AutoAlign: No alliance color found.");
+            return Optional.empty();
+        }
+        Alliance alliance = allianceOpt.get();
 
+        Set<Integer> visibleTagIds = visionSubsystem.getVisibleTagIds();
         if (visibleTagIds.isEmpty()) {
             System.out.println("AutoAlign: No tags visible to any camera.");
             return Optional.empty();
@@ -153,10 +163,18 @@ public class AutoAlignCommand extends Command {
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
 
-        for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
-            if (visibleTagIds.contains(scoringPose.parentTagId)) {
-                AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState)
-                    .ifPresent(potentialTargets::add);
+        for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
+            if (visibleTagIds.contains(scoringPoseInfo.parentTagId)) {
+                // Dynamically calculate the field-relative pose for this target
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance);
+                
+                targetPoseOpt.ifPresent(targetPose -> {
+                    // If pose is valid, calculate its cost and add it to our list
+                    TargetCost cost = AlignmentCostUtil.calculateCost(
+                        scoringPoseInfo, targetPose, currentPose, velocity, reefState
+                    );
+                    potentialTargets.add(cost);
+                });
             }
         }
 
@@ -170,12 +188,21 @@ public class AutoAlignCommand extends Command {
     }
 
     private Optional<TargetCost> findTargetById(String id) {
+        Optional<Alliance> allianceOpt = DriverStation.getAlliance();
+        if (allianceOpt.isEmpty()) return Optional.empty();
+        Alliance alliance = allianceOpt.get();
+
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
 
-        for (var scoringPose : VisionConstants.ALL_SCORING_POSES) {
-            if (scoringPose.id.equals(id)) {
-                return AlignmentCostUtil.calculateCost(scoringPose, currentPose, velocity, reefState);
+        for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
+            if (scoringPoseInfo.id.equals(id)) {
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance);
+                
+                // If the pose can be calculated, create and return a TargetCost object for it
+                return targetPoseOpt.map(targetPose -> 
+                    AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPose, currentPose, velocity, reefState)
+                );
             }
         }
         return Optional.empty();
