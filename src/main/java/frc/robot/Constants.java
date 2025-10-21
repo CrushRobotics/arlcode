@@ -41,11 +41,9 @@ public final class Constants {
         public static final int LEFT_FOLLOWER_ID = 9;
         public static final int RIGHT_LEADER_ID = 7;
         public static final int RIGHT_FOLLOWER_ID = 6;
-
-        // TODO: Accurately measure these values for your robot!
         public static final double DRIVE_GEARING = 8.26; 
         public static final double WHEEL_RADIUS_METERS = Units.inchesToMeters(3.0);
-        public static final double TRACK_WIDTH_METERS = 0.264; // Distance between wheel centers
+        public static final double TRACK_WIDTH_METERS = 0.264; 
 
         public static final double WHEEL_CIRCUMFERENCE_METERS = 2 * Math.PI * WHEEL_RADIUS_METERS;
         public static final double ROTATIONS_TO_METERS = WHEEL_CIRCUMFERENCE_METERS / DRIVE_GEARING;
@@ -107,14 +105,11 @@ public final class Constants {
         public static final double kP_TURN = 0.6;
         public static final double kI_TURN = 0.1;
         public static final double kD_TURN = 0.1;
-        // TODO: Tune turn tolerance
         public static final double TURN_TOLERANCE_DEGREES = 2.0;
-
         // TODO: Tune drive PID constants
         public static final double kP_DRIVE = 1.0;
         public static final double kI_DRIVE = 0.0;
         public static final double kD_DRIVE = 0.0;
-        // TODO: Tune drive tolerance
         public static final double DRIVE_TOLERANCE_METERS = 0.1;
 
         // TODO: Tune the desired distance the robot should be from the target when aligned.
@@ -259,18 +254,17 @@ public final class Constants {
             );
         }).collect(Collectors.toList());
     }
+    // TODO: Tune these tolerances for the drive to pose command.
     public static final class AutoConstants {
-        // TODO: Tune these PID constants for driving to a pose.
         public static final double kP_DRIVE_TO_POSE = 1.2;
         public static final double kP_TURN_TO_POSE = 0.05;
-        // TODO: Tune these tolerances for the drive to pose command.
-        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.2;
+        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.6;
         public static final double TURN_TO_POSE_TOLERANCE_DEGREES = 5.0;
 
         public static final List<Integer> RED_CORAL_COLLECTION_TAG_IDS = List.of(1, 2);
         public static final List<Integer> BLUE_CORAL_COLLECTION_TAG_IDS = List.of(12, 13);
         
-        // TODO: Tune these values if this simple auto is used.
+        // TODO: Tune these values for simple auto 
         public static final double AUTO_DRIVE_SPEED = 0.25;
         public static final double AUTO_DRIVE_SECONDS = 3.0;
         public static final double AUTO_INTAKE_SPEED = 0.2;

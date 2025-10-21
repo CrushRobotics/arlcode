@@ -4,8 +4,6 @@
 
 package frc.robot;
 
-import edu.wpi.first.cscore.HttpCamera;
-import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -19,16 +17,9 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // This creates HttpCamera objects for each Limelight and then explicitly
-    // tells the CameraServer to start capturing and streaming them.
-
-    // Create a camera object for the right Limelight
-    HttpCamera limelightRight = new HttpCamera("limelight-right", "http://limelight-right.local:5800/stream.mjpg");
-    CameraServer.startAutomaticCapture(limelightRight);
-
-    // Create a camera object for the left Limelight
-    HttpCamera limelightLeft = new HttpCamera("limelight-left", "http://limelight-left.local:5801/stream.mjpg");
-    CameraServer.startAutomaticCapture(limelightLeft);
+    // The CameraServer automatically finds Limelight streams published to NetworkTables.
+    // No manual HttpCamera setup is needed. The dashboard widgets will pick up the
+    // streams named "limelight-right" and "limelight-left" automatically.
   
     m_robotContainer = new RobotContainer();
 
