@@ -9,6 +9,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -49,6 +50,8 @@ public class AutoAlignCommand extends Command {
 
     private static String lockedTargetId = null;
     private static Pose2d lockedTargetPose = null;
+    private final Timer blindTimer = new Timer();
+
 
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef, AlignMode mode) {
         this.driveSubsystem = drive;
@@ -79,6 +82,9 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void initialize() {
+        blindTimer.stop();
+        blindTimer.reset();
+        
         // Find the best target at the start of the command.
         Optional<TargetCost> initialTarget = findBestTarget();
 
@@ -107,11 +113,14 @@ public class AutoAlignCommand extends Command {
     public void execute() {
         // 1. Continuously update target pose if vision is available
         Optional<TargetCost> currentBestVisibleTarget = findBestTarget();
-        if (currentBestVisibleTarget.isPresent()) {
-            // If we can see a target, update our locked pose with the latest data.
-            // This corrects for any robot drift.
+        boolean hasVision = currentBestVisibleTarget.isPresent();
+
+        if (hasVision) {
+            // If we can see a target, update our locked pose with the latest data and reset the safety timer.
             lockedTargetId = currentBestVisibleTarget.get().scoringPose.id;
             lockedTargetPose = currentBestVisibleTarget.get().targetPose;
+            blindTimer.stop();
+            blindTimer.reset();
         }
         // If we can't see a target, we just keep driving towards the last known lockedTargetPose.
     
@@ -124,6 +133,12 @@ public class AutoAlignCommand extends Command {
         Pose2d currentPose = localizationSubsystem.getPose();
         double currentDistance = currentPose.getTranslation().getDistance(lockedTargetPose.getTranslation());
         
+        // 3. Blind Safety Timer Logic
+        // If we are close, have no vision, and the timer isn't running, start it.
+        if (currentDistance < AutoAlignConstants.FINAL_APPROACH_DISTANCE_METERS && !hasVision && blindTimer.get() == 0) {
+            blindTimer.start();
+        }
+
         // --- PID Calculation ---
         Translation2d translationToTarget = lockedTargetPose.getTranslation().minus(currentPose.getTranslation());
         double driveSpeed = -driveController.calculate(currentDistance, 0);
@@ -133,7 +148,6 @@ public class AutoAlignCommand extends Command {
         Rotation2d finalRotation = lockedTargetPose.getRotation();
         
         double turnSetpoint;
-        // When far, point towards the target. When close, point to the final scoring rotation.
         if (currentDistance > AutoAlignConstants.ROTATION_SWAP_DISTANCE_METERS) {
             turnSetpoint = rotationToTarget.getDegrees();
         } else {
@@ -144,13 +158,18 @@ public class AutoAlignCommand extends Command {
     
         // --- Stopping Logic ---
         double rotationalErrorDegrees = currentPose.getRotation().minus(finalRotation).getDegrees();
-        if (driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES) {
+        boolean isAligned = driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES;
+        boolean safetyTimeoutReached = blindTimer.get() > AutoAlignConstants.BLIND_SAFETY_TIMEOUT_SECONDS && blindTimer.get() != 0;
+
+        if (isAligned || safetyTimeoutReached) {
+            if (safetyTimeoutReached) {
+                System.out.println("AutoAlign: Safety timeout reached. Forcing stop.");
+            }
             driveSubsystem.stop();
             return;
         }
         
         // --- Command Motors ---
-        // Scale forward speed so the robot doesn't try to drive sideways.
         double angleError = currentPose.getRotation().minus(rotationToTarget).getRadians();
         double driveScale = Math.cos(angleError);
         
@@ -165,7 +184,8 @@ public class AutoAlignCommand extends Command {
         SmartDashboard.putString("AutoAlign/TargetID", lockedTargetId != null ? lockedTargetId : "None");
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance);
         SmartDashboard.putNumber("AutoAlign/RotationError", rotationalErrorDegrees);
-        SmartDashboard.putBoolean("AutoAlign/VisionAvailable", currentBestVisibleTarget.isPresent());
+        SmartDashboard.putBoolean("AutoAlign/VisionAvailable", hasVision);
+        SmartDashboard.putNumber("AutoAlign/BlindTimer", blindTimer.get());
     }
 
     private Optional<TargetCost> findBestTarget() {
@@ -201,15 +221,12 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public boolean isFinished() {
-        // For teleop control, we want it to run as long as the button is held, so we return false.
-        // The stopping logic is handled inside execute().
         return false;
     }
 
     @Override
     public void end(boolean interrupted) {
         driveSubsystem.stop();
-        // Clear the lock if the command was interrupted (e.g., driver let go of the button).
         if (interrupted) {
             lockedTargetId = null;
             lockedTargetPose = null;
@@ -222,7 +239,6 @@ public class AutoAlignCommand extends Command {
             if (lockedTargetId != null) {
                 reefState.markScored(lockedTargetId);
                 System.out.println("Marked " + lockedTargetId + " as scored.");
-                // Clear the lock so the next alignment finds a new target.
                 lockedTargetId = null;
                 lockedTargetPose = null;
             }

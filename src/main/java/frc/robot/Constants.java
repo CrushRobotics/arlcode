@@ -97,7 +97,7 @@ public final class Constants {
 
     public static final class AutoAlignConstants {
         // TODO: Tune these PID constants for the AutoAlign command
-        public static final double kP_TURN = 0.6;
+        public static final double kP_TURN = 0.4;
         public static final double kI_TURN = 0.1;
         public static final double kD_TURN = 0.1;
         public static final double TURN_TOLERANCE_DEGREES = 2.0;
@@ -109,14 +109,18 @@ public final class Constants {
 
         // TODO: Tune this distance. Once the robot is closer than this to the target,
         // it will stop using vision and rely on odometry to finish the approach.
-        public static final double FINAL_APPROACH_DISTANCE_METERS = 0.5;
+        public static final double FINAL_APPROACH_DISTANCE_METERS = 1.5;
 
         // TODO: Tune this distance. When farther than this, the robot will prioritize
         // pointing towards the target. When closer, it will prioritize the final angle.
-        public static final double ROTATION_SWAP_DISTANCE_METERS = 1.0;
+        public static final double ROTATION_SWAP_DISTANCE_METERS = 2.0;
+
+        // TODO: Tune this timeout. This is a safety to stop the robot if it's been
+        // driving blind for too long.
+        public static final double BLIND_SAFETY_TIMEOUT_SECONDS = 0.75;
 
         // TODO: Tune the desired distance the robot should be from the target when aligned.
-        public static final double DESIRED_DISTANCE_METERS = 0.5;
+        public static final double DESIRED_DISTANCE_METERS = 1.0;
 
         // TODO: Tune the weights for the alignment cost function.
         public static final double DISTANCE_WEIGHT = 1.5;
@@ -189,11 +193,9 @@ public final class Constants {
         public static class ScoringPose {
             public final int parentTagId;
             public final String id;
-            public final ScoringLevel level;
-            public ScoringPose(int parentTagId, String id, ScoringLevel level) {
+            public ScoringPose(int parentTagId, String id) {
                 this.parentTagId = parentTagId;
                 this.id = id;
-                this.level = level;
             }
         }
         
@@ -211,7 +213,7 @@ public final class Constants {
         // Update this once you know which side of your robot has the collector.
         public static final Rotation2d COLLECTING_ROTATION = Rotation2d.fromDegrees(0.0);
 
-        // TODO: Measure this value on the field.
+        // TODO: Measure this value on the field. This is the distance from the center of an AprilTag to the center of a scoring peg.
         private static final double PEG_OFFSET_METERS = Units.inchesToMeters(12.0);
 
         private static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22);
@@ -222,10 +224,8 @@ public final class Constants {
          */
         public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream().flatMap(tagId -> 
             Stream.of(
-                new ScoringPose(tagId, tagId + "_L2_LEFT", ScoringLevel.L2), 
-                new ScoringPose(tagId, tagId + "_L2_RIGHT", ScoringLevel.L2), 
-                new ScoringPose(tagId, tagId + "_L3_LEFT", ScoringLevel.L3), 
-                new ScoringPose(tagId, tagId + "_L3_RIGHT", ScoringLevel.L3)
+                new ScoringPose(tagId, tagId + "_LEFT"), 
+                new ScoringPose(tagId, tagId + "_RIGHT")
             )
         ).collect(Collectors.toList());
 
