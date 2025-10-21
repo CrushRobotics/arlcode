@@ -82,6 +82,7 @@ public class AutoAlignCommand extends Command {
     @Override
     public void initialize() {
         isCloseToTarget = false;
+        // If we don't have a lock, find the best target.
         if (lockedTargetId == null) {
             bestTarget = findBestTarget();
             if (bestTarget.isPresent()) {
@@ -93,8 +94,8 @@ public class AutoAlignCommand extends Command {
                  lockedTargetPose = null;
             }
         } else {
+            // If we already have a lock, just recalculate the pose for it.
             System.out.println("Auto Align Re-initialized: Sticking with locked target: " + lockedTargetId);
-            // If we have a locked target, we need to recalculate its pose for the current robot position
             Optional<TargetCost> lockedTargetOpt = findTargetById(lockedTargetId);
             if(lockedTargetOpt.isPresent()){
                 bestTarget = lockedTargetOpt;
@@ -125,51 +126,53 @@ public class AutoAlignCommand extends Command {
         }
     
         Pose2d currentPose = localizationSubsystem.getPose();
-        // The target pose is now the locked pose
-        Pose2d targetPose = lockedTargetPose;
+        double currentDistance = currentPose.getTranslation().getDistance(lockedTargetPose.getTranslation());
 
-        double currentDistance = currentPose.getTranslation().getDistance(targetPose.getTranslation());
+        // Check if we have entered the final approach phase.
+        if (currentDistance < AutoAlignConstants.FINAL_APPROACH_DISTANCE_METERS) {
+            isCloseToTarget = true;
+        }
 
-        // Phase 1: Vision-guided. If we're far away, keep updating the best target
-        // in case a better one appears or our initial choice becomes invalid.
-        if (!isCloseToTarget && currentDistance > AutoAlignConstants.FINAL_APPROACH_DISTANCE_METERS) {
+        // --- Vision Update Logic ---
+        // If we are NOT in the final approach, continuously look for a better target.
+        if (!isCloseToTarget) {
             Optional<TargetCost> currentBest = findBestTarget();
+            // If we see a target, update our lock. If we don't see one, we KEEP our old lock.
             if (currentBest.isPresent()) {
                 bestTarget = currentBest;
                 lockedTargetId = bestTarget.get().scoringPose.id;
-                lockedTargetPose = bestTarget.get().targetPose; // Update the locked pose
-            } else {
-                // We lost all targets, stop.
-                lockedTargetPose = null;
-                driveSubsystem.stop();
-                return;
+                lockedTargetPose = bestTarget.get().targetPose; 
             }
-        } else {
-            // Phase 2: Odometry-guided. We are close, so commit to the last known pose.
-            isCloseToTarget = true;
         }
         
-        // --- Translation Control ---
-        Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
+        // --- PID Calculation ---
+        Translation2d translationToTarget = lockedTargetPose.getTranslation().minus(currentPose.getTranslation());
         double driveSpeed = -driveController.calculate(currentDistance, 0);
         
-        // --- Rotation Control ---
-        Rotation2d desiredRotation = targetPose.getRotation();
-        double rotationSpeedDegPerSec = turnController.calculate(
-            currentPose.getRotation().getDegrees(),
-            desiredRotation.getDegrees()
-        );
+        // --- Dynamic Rotation Control ---
+        Rotation2d rotationToTarget = translationToTarget.getAngle();
+        Rotation2d finalRotation = lockedTargetPose.getRotation();
+        
+        double turnSetpoint;
+        // When far, point towards the target. When close, point to the final scoring rotation.
+        if (currentDistance > AutoAlignConstants.ROTATION_SWAP_DISTANCE_METERS) {
+            turnSetpoint = rotationToTarget.getDegrees();
+        } else {
+            turnSetpoint = finalRotation.getDegrees();
+        }
+
+        double rotationSpeedDegPerSec = turnController.calculate(currentPose.getRotation().getDegrees(), turnSetpoint);
     
         // --- Stopping Logic ---
-        double rotationalErrorDegrees = currentPose.getRotation().minus(desiredRotation).getDegrees();
+        double rotationalErrorDegrees = currentPose.getRotation().minus(finalRotation).getDegrees();
         if (driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES) {
             driveSubsystem.stop();
             return;
         }
         
         // --- Command Motors ---
-        Rotation2d travelDirection = translationToTarget.getAngle();
-        double angleError = currentPose.getRotation().minus(travelDirection).getRadians();
+        // Scale forward speed so the robot doesn't try to drive sideways.
+        double angleError = currentPose.getRotation().minus(rotationToTarget).getRadians();
         double driveScale = Math.cos(angleError);
         
         double finalDriveSpeed = driveSpeed * Math.max(0, driveScale);
@@ -191,7 +194,6 @@ public class AutoAlignCommand extends Command {
         Optional<Alliance> alliance = DriverStation.getAlliance();
 
         if (visibleTagIds.isEmpty() || alliance.isEmpty()) {
-            System.out.println("AutoAlign: No tags visible or no alliance detected.");
             return Optional.empty();
         }
 
@@ -201,7 +203,6 @@ public class AutoAlignCommand extends Command {
 
         for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
             if (visibleTagIds.contains(scoringPoseInfo.parentTagId)) {
-                // Dynamically calculate the pose for this target, using the current alignMode
                 Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get(), alignMode);
                 
                 if (targetPoseOpt.isPresent()) {
@@ -212,7 +213,6 @@ public class AutoAlignCommand extends Command {
         }
 
         if (potentialTargets.isEmpty()) {
-            System.out.println("AutoAlign: Visible tags are not valid scoring targets.");
             return Optional.empty();
         }
 
@@ -241,12 +241,16 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public boolean isFinished() {
+        // This command will finish when the robot is at the setpoint, checked in execute().
+        // For teleop control, we want it to run as long as the button is held, so we return false.
         return false;
     }
 
     @Override
     public void end(boolean interrupted) {
         driveSubsystem.stop();
+        // We only clear the lock if the command was interrupted (e.g., driver let go of the button).
+        // If it finishes normally by reaching the setpoint, we might want to keep the lock.
         if (interrupted) {
             lockedTargetId = null;
             lockedTargetPose = null;
@@ -256,11 +260,13 @@ public class AutoAlignCommand extends Command {
 
     public Command getMarkScoredCommand() {
         return new InstantCommand(() -> {
-            Optional<TargetCost> target = findBestTarget();
-            target.ifPresent(t -> {
-                reefState.markScored(t.scoringPose.id);
-                System.out.println("Marked " + t.scoringPose.id + " as scored.");
-            });
+            if (lockedTargetId != null) {
+                reefState.markScored(lockedTargetId);
+                System.out.println("Marked " + lockedTargetId + " as scored.");
+                // Clear the lock so the next alignment finds a new target.
+                lockedTargetId = null;
+                lockedTargetPose = null;
+            }
         });
     }
 }
