@@ -91,43 +91,53 @@ public class AutoAlignCommand extends Command {
             driveSubsystem.stop();
             return;
         }
-
+    
         Pose2d currentPose = localizationSubsystem.getPose();
         Pose2d targetPose = bestTarget.get().scoringPose.pose;
         
+        // --- Translation Control ---
+        // Vector from where we are to where we want to be.
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
         double currentDistance = translationToTarget.getNorm();
-        Rotation2d desiredRotation = translationToTarget.getAngle();
-
-        double driveSpeed = -driveController.calculate(currentDistance, AutoAlignConstants.DESIRED_DISTANCE_METERS);
-
-        double angleError = currentPose.getRotation().minus(desiredRotation).getRadians();
-        double driveScale = Math.cos(angleError);
-        driveScale = Math.max(0, driveScale);
-        double finalDriveSpeed = driveSpeed * driveScale;
         
-        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -1.0, 1.0);
-
+        // Calculate the drive speed to close the distance to the target point. Setpoint is 0.
+        double driveSpeed = -driveController.calculate(currentDistance, 0);
+        
+        // --- Rotation Control ---
+        // The desired final rotation is now defined in the ScoringPose.
+        Rotation2d desiredRotation = targetPose.getRotation();
+    
+        // Calculate the turn speed to achieve the desired final rotation.
         double rotationSpeedDegPerSec = turnController.calculate(
             currentPose.getRotation().getDegrees(),
             desiredRotation.getDegrees()
         );
-
+    
+        // --- Stopping Logic ---
         double rotationalErrorDegrees = currentPose.getRotation().minus(desiredRotation).getDegrees();
-
         if (driveController.atSetpoint() && Math.abs(rotationalErrorDegrees) < AutoAlignConstants.TURN_TOLERANCE_DEGREES) {
             driveSubsystem.stop();
             return;
         }
-
+        
+        // --- Command Motors ---
+        // Scale forward speed so the robot doesn't try to drive sideways.
+        // It will only drive forward when facing the direction of travel.
+        Rotation2d travelDirection = translationToTarget.getAngle();
+        double angleError = currentPose.getRotation().minus(travelDirection).getRadians();
+        double driveScale = Math.cos(angleError);
+        
+        double finalDriveSpeed = driveSpeed * Math.max(0, driveScale);
+        finalDriveSpeed = MathUtil.clamp(finalDriveSpeed, -0.7, 0.7);
+    
         double rotationSpeedRadPerSec = Units.degreesToRadians(rotationSpeedDegPerSec);
         
+        // We can't command a sideways velocity with differential drive, so vy is 0.
         ChassisSpeeds targetChassisSpeeds = new ChassisSpeeds(finalDriveSpeed, 0, rotationSpeedRadPerSec);
-        
         driveSubsystem.setChassisSpeeds(targetChassisSpeeds);
-
+    
         SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
-        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance - AutoAlignConstants.DESIRED_DISTANCE_METERS);
+        SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance);
         SmartDashboard.putNumber("AutoAlign/RotationError", rotationalErrorDegrees);
     }
 

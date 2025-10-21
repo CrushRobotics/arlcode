@@ -41,6 +41,8 @@ public final class Constants {
         public static final int LEFT_FOLLOWER_ID = 9;
         public static final int RIGHT_LEADER_ID = 7;
         public static final int RIGHT_FOLLOWER_ID = 6;
+
+        // TODO: Accurately measure these values for your robot!
         public static final double DRIVE_GEARING = 8.26; 
         public static final double WHEEL_RADIUS_METERS = Units.inchesToMeters(3.0);
         public static final double TRACK_WIDTH_METERS = 0.264; // Distance between wheel centers
@@ -102,9 +104,9 @@ public final class Constants {
 
     public static final class AutoAlignConstants {
         // TODO: Tune these PID constants for the AutoAlign command
-        public static final double kP_TURN = 0.05;
-        public static final double kI_TURN = 0.0;
-        public static final double kD_TURN = 0.0;
+        public static final double kP_TURN = 0.6;
+        public static final double kI_TURN = 0.1;
+        public static final double kD_TURN = 0.1;
         // TODO: Tune turn tolerance
         public static final double TURN_TOLERANCE_DEGREES = 2.0;
 
@@ -218,17 +220,43 @@ public final class Constants {
         private static final double PEG_OFFSET_METERS = Units.inchesToMeters(12.0);
 
         private static final List<Integer> CORAL_SCORING_TAG_IDS = List.of(6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22);
+        
         public static final List<ScoringPose> ALL_SCORING_POSES = CORAL_SCORING_TAG_IDS.stream().flatMap(tagId -> {
             var tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(tagId);
             if (tagPose3d == null) {
                 return Stream.empty();
             }
             Pose2d tagPose = tagPose3d.toPose2d();
-            Transform2d leftOffset = new Transform2d(new Translation2d(0, PEG_OFFSET_METERS), new Rotation2d());
-            Transform2d rightOffset = new Transform2d(new Translation2d(0, -PEG_OFFSET_METERS), new Rotation2d());
-            Pose2d leftPegPose = tagPose.transformBy(leftOffset);
-            Pose2d rightPegPose = tagPose.transformBy(rightOffset);
-            return Stream.of(new ScoringPose(leftPegPose, tagId, tagId + "_L2_LEFT", ScoringLevel.L2), new ScoringPose(rightPegPose, tagId, tagId + "_L2_RIGHT", ScoringLevel.L2), new ScoringPose(leftPegPose, tagId, tagId + "_L3_LEFT", ScoringLevel.L3), new ScoringPose(rightPegPose, tagId, tagId + "_L3_RIGHT", ScoringLevel.L3));
+    
+            // The direction the robot should face to be square with the tag
+            Rotation2d robotRotation = tagPose.getRotation().plus(Rotation2d.fromDegrees(180));
+    
+            // The base point for the robot, DESIRED_DISTANCE_METERS away from the tag's center
+            Translation2d baseStopPoint = tagPose.getTranslation().plus(
+                new Translation2d(AutoAlignConstants.DESIRED_DISTANCE_METERS, 0).rotateBy(robotRotation)
+            );
+    
+            // The direction for lateral offsets (along the wall, to the tag's left)
+            Rotation2d lateralDirection = tagPose.getRotation().plus(Rotation2d.fromDegrees(90));
+    
+            // Calculate final stop points for left and right pegs by applying the lateral offset
+            Translation2d leftPegStopPoint = baseStopPoint.plus(
+                new Translation2d(PEG_OFFSET_METERS, 0).rotateBy(lateralDirection)
+            );
+            Translation2d rightPegStopPoint = baseStopPoint.plus(
+                new Translation2d(-PEG_OFFSET_METERS, 0).rotateBy(lateralDirection)
+            );
+    
+            // Create the final Pose2d objects for the robot's target position and orientation
+            Pose2d leftPegPose = new Pose2d(leftPegStopPoint, robotRotation);
+            Pose2d rightPegPose = new Pose2d(rightPegStopPoint, robotRotation);
+    
+            return Stream.of(
+                new ScoringPose(leftPegPose, tagId, tagId + "_L2_LEFT", ScoringLevel.L2), 
+                new ScoringPose(rightPegPose, tagId, tagId + "_L2_RIGHT", ScoringLevel.L2), 
+                new ScoringPose(leftPegPose, tagId, tagId + "_L3_LEFT", ScoringLevel.L3), 
+                new ScoringPose(rightPegPose, tagId, tagId + "_L3_RIGHT", ScoringLevel.L3)
+            );
         }).collect(Collectors.toList());
     }
     public static final class AutoConstants {
@@ -277,4 +305,3 @@ public final class Constants {
         );
     }
 }
-
