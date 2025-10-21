@@ -30,10 +30,19 @@ import java.util.Set;
 
 public class AutoAlignCommand extends Command {
 
+    /**
+     * Defines the purpose of the alignment, which determines the robot's final orientation.
+     */
+    public enum AlignMode {
+        SCORING,
+        COLLECTING
+    }
+
     private final CANDriveSubsystem driveSubsystem;
     private final LocalizationSubsystem localizationSubsystem;
     private final VisionSubsystem visionSubsystem;
     private final ReefState reefState;
+    private final AlignMode alignMode;
 
     private final ProfiledPIDController turnController;
     private final ProfiledPIDController driveController;
@@ -43,11 +52,12 @@ public class AutoAlignCommand extends Command {
     private Optional<TargetCost> bestTarget = Optional.empty();
     private boolean isCloseToTarget = false;
 
-    public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
+    public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef, AlignMode mode) {
         this.driveSubsystem = drive;
         this.localizationSubsystem = localization;
         this.visionSubsystem = vision;
         this.reefState = reef;
+        this.alignMode = mode;
 
         turnController = new ProfiledPIDController(
             AutoAlignConstants.kP_TURN, 
@@ -191,8 +201,8 @@ public class AutoAlignCommand extends Command {
 
         for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
             if (visibleTagIds.contains(scoringPoseInfo.parentTagId)) {
-                // Dynamically calculate the pose for this target
-                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get());
+                // Dynamically calculate the pose for this target, using the current alignMode
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get(), alignMode);
                 
                 if (targetPoseOpt.isPresent()) {
                     TargetCost cost = AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPoseOpt.get(), currentPose, velocity, reefState);
@@ -219,7 +229,7 @@ public class AutoAlignCommand extends Command {
 
         for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
             if (scoringPoseInfo.id.equals(id)) {
-                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get());
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get(), alignMode);
                 if (targetPoseOpt.isPresent()) {
                     return Optional.of(AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPoseOpt.get(), currentPose, velocity, reefState));
                 }

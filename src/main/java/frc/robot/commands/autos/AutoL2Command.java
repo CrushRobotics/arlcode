@@ -2,6 +2,7 @@ package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.commands.AutoAlignCommand;
+import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
@@ -31,7 +32,7 @@ public class AutoL2Command extends SequentialCommandGroup {
     ) {
         addCommands(
             // 1. Dynamically find the best scoring location and align the robot to it.
-            new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState),
+            new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING),
 
             // 2. Once aligned, move the arm and elevator to the L2 scoring position.
             new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L2),

@@ -14,6 +14,7 @@ import frc.robot.Constants.ArmConstants;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.FieldConstants;
 import frc.robot.commands.AutoAlignCommand;
+import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.DriveToPoseCommand;
 import frc.robot.commands.SetScoringPositionCommand;
@@ -41,7 +42,7 @@ public AutoL3Command(
 
     addCommands(
         // 1. Scan and score pre-loaded coral on L3
-        new AutoAlignCommand(drive, localization, vision, reefState),
+        new AutoAlignCommand(drive, localization, vision, reefState, AlignMode.SCORING),
         new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
         new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0),
 
@@ -76,7 +77,7 @@ public AutoL3Command(
         
         // The AutoAlignCommand will find the best available scoring pose and drive to it.
         // The redundant DriveToPoseCommand has been removed.
-        new AutoAlignCommand(drive, localization, vision, reefState),
+        new AutoAlignCommand(drive, localization, vision, reefState, AlignMode.SCORING),
         new SetScoringPositionCommand(arm, elevator, ScoringLevel.L3),
         new CoralIntakeCommand(coralIntake, CoralIntakeDirection.Down).withTimeout(1.0)
     );

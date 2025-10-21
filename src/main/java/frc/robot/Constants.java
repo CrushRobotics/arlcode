@@ -19,6 +19,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 
 /**
@@ -196,6 +197,16 @@ public final class Constants {
         public static final Transform3d LEFT_ROBOT_TO_CAMERA = new Transform3d(new Translation3d(0.0, 0.0, 0.0), new Rotation3d(0.0, 0.00, 0.0));
         public static final Transform3d RIGHT_ROBOT_TO_CAMERA = new Transform3d(new Translation3d(0.029, -0.05, 0.089), new Rotation3d(0.0, -0.27, 0.0));
         
+        // TODO: This defines the orientation of the ROBOT'S FRONT when scoring.
+        // O degrees is field-relative forward (away from your driver station).
+        // 180 degrees is field-relative backward (towards your driver station).
+        // Update this once you know which side of your robot has the coral mechanism.
+        public static final Rotation2d SCORING_ROTATION = Rotation2d.fromDegrees(180.0);
+
+        // TODO: This defines the orientation of the ROBOT'S FRONT when collecting from the wall.
+        // Update this once you know which side of your robot has the collector.
+        public static final Rotation2d COLLECTING_ROTATION = Rotation2d.fromDegrees(0.0);
+
         // TODO: Measure this value on the field.
         private static final double PEG_OFFSET_METERS = Units.inchesToMeters(12.0);
 
@@ -218,32 +229,38 @@ public final class Constants {
          * Calculates the desired field-relative robot pose to align with a specific scoring pipe.
          * @param scoringPoseInfo The semantic information about the target (tag, side, etc.).
          * @param alliance The current alliance color.
+         * @param mode The alignment mode (SCORING or COLLECTING), which determines robot orientation.
          * @return An Optional containing the calculated Pose2d, or empty if the tag ID is invalid.
          */
-        public static Optional<Pose2d> getFieldRelativePose(ScoringPose scoringPoseInfo, Alliance alliance) {
+        public static Optional<Pose2d> getFieldRelativePose(ScoringPose scoringPoseInfo, Alliance alliance, AlignMode mode) {
             Pose3d tagPose3d = FieldConstants.APRIL_TAG_FIELD_LAYOUT.get(scoringPoseInfo.parentTagId);
             if (tagPose3d == null) return Optional.empty();
-    
-            // Alliance determines the final orientation and offset directions
-            Rotation2d targetRobotRotation = (alliance == Alliance.Red) ? new Rotation2d() : Rotation2d.fromDegrees(180);
-    
+
+            // 1. Determine the final robot orientation based on the alignment mode.
+            Rotation2d targetRobotRotation;
+            if (mode == AlignMode.SCORING) {
+                targetRobotRotation = (alliance == Alliance.Red) ? SCORING_ROTATION.plus(Rotation2d.fromDegrees(180)) : SCORING_ROTATION;
+            } else { // COLLECTING
+                targetRobotRotation = (alliance == Alliance.Red) ? COLLECTING_ROTATION.plus(Rotation2d.fromDegrees(180)) : COLLECTING_ROTATION;
+            }
+            
             // Start with the tag's position
             Translation2d tagTranslation = tagPose3d.toPose2d().getTranslation();
             
-            // 1. Calculate the point directly in front of the tag
+            // 2. Calculate the point directly in front of the tag
             Translation2d forwardOffset = (alliance == Alliance.Red)
                 ? new Translation2d(-AutoAlignConstants.DESIRED_DISTANCE_METERS, 0)
                 : new Translation2d(AutoAlignConstants.DESIRED_DISTANCE_METERS, 0);
             Translation2d stopPoint = tagTranslation.plus(forwardOffset);
     
-            // 2. Calculate the lateral offset for the specific pipe
+            // 3. Calculate the lateral offset for the specific pipe
             Rotation2d lateralDirection = (alliance == Alliance.Red) ? Rotation2d.fromDegrees(-90) : Rotation2d.fromDegrees(90);
             double lateralOffsetDistance = scoringPoseInfo.id.contains("LEFT") ? PEG_OFFSET_METERS : -PEG_OFFSET_METERS;
             
             Translation2d lateralOffset = new Translation2d(lateralOffsetDistance, 0).rotateBy(lateralDirection);
             Translation2d finalStopPoint = stopPoint.plus(lateralOffset);
             
-            // 3. Combine final position and orientation
+            // 4. Combine final position and orientation
             return Optional.of(new Pose2d(finalStopPoint, targetRobotRotation));
         }
     }
@@ -252,7 +269,7 @@ public final class Constants {
     public static final class AutoConstants {
         public static final double kP_DRIVE_TO_POSE = 1.2;
         public static final double kP_TURN_TO_POSE = 0.05;
-        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 1.5;
+        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.6;
         public static final double TURN_TO_POSE_TOLERANCE_DEGREES = 5.0;
 
         public static final List<Integer> RED_CORAL_COLLECTION_TAG_IDS = List.of(1, 2);
@@ -294,4 +311,3 @@ public final class Constants {
         );
     }
 }
-

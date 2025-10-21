@@ -20,6 +20,7 @@ import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
 import frc.robot.commands.AutoAlignCommand;
+import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.ClimberClimbCommand;
 import frc.robot.commands.CoralIntakeCommand;
 import frc.robot.commands.CoralIntakeCommand.CoralIntakeDirection;
@@ -163,8 +164,8 @@ public class RobotContainer {
     NamedCommands.registerCommand("intakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     NamedCommands.registerCommand("outtakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     NamedCommands.registerCommand("climb", new ClimberClimbCommand(climberSubsystem));
-    NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState));
-    NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState).getMarkScoredCommand());
+    NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING));
+    NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING).getMarkScoredCommand());
     NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
 
      // Configure the auto chooser
@@ -219,13 +220,16 @@ public class RobotContainer {
     driverController.leftBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     driverController.rightBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
+    //collection alignment. probably wont need for manual, neccesity for auto. just in case. 
+    //driverController.y().whileTrue(new AutoAlignCommand(driveSubsystem,localizationSubsystem, visionSubsystem,reefState,AlignMode.COLLECTING));
 
     // --- UPDATED Auto Align Binding ---
     AutoAlignCommand autoAlignCommand = new AutoAlignCommand(
         driveSubsystem, 
         localizationSubsystem, 
         visionSubsystem, 
-        reefState);
+        reefState,
+        AlignMode.SCORING);
         
     driverController.a().whileTrue(autoAlignCommand);
 
@@ -269,4 +273,3 @@ public class RobotContainer {
       // Vision has been removed from simulationPeriodic
   }
 }
-
