@@ -39,7 +39,9 @@ public class AutoAlignCommand extends Command {
     private final ProfiledPIDController driveController;
 
     private static String lockedTargetId = null;
+    private static Pose2d lockedTargetPose = null;
     private Optional<TargetCost> bestTarget = Optional.empty();
+    private boolean isCloseToTarget = false;
 
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef) {
         this.driveSubsystem = drive;
@@ -69,27 +71,35 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void initialize() {
+        isCloseToTarget = false;
         if (lockedTargetId == null) {
             bestTarget = findBestTarget();
             if (bestTarget.isPresent()) {
                 lockedTargetId = bestTarget.get().scoringPose.id;
+                lockedTargetPose = bestTarget.get().targetPose;
                 System.out.println("Auto Align Initialized: New target locked: " + lockedTargetId);
             } else {
                  System.out.println("Auto Align Initialized: No valid targets found.");
+                 lockedTargetPose = null;
             }
         } else {
             System.out.println("Auto Align Re-initialized: Sticking with locked target: " + lockedTargetId);
-            bestTarget = findTargetById(lockedTargetId);
-            if (bestTarget.isEmpty()) {
+            // If we have a locked target, we need to recalculate its pose for the current robot position
+            Optional<TargetCost> lockedTargetOpt = findTargetById(lockedTargetId);
+            if(lockedTargetOpt.isPresent()){
+                bestTarget = lockedTargetOpt;
+                lockedTargetPose = bestTarget.get().targetPose;
+            } else {
                 System.out.println("Could not re-find locked target. Clearing lock.");
                 lockedTargetId = null; 
+                lockedTargetPose = null;
             }
         }
 
         // Reset the PID controllers with the current measurements
         Pose2d currentPose = localizationSubsystem.getPose();
-        if (bestTarget.isPresent()) {
-            double initialDistance = bestTarget.get().targetPose.getTranslation().minus(currentPose.getTranslation()).getNorm();
+        if (lockedTargetPose != null) {
+            double initialDistance = lockedTargetPose.getTranslation().minus(currentPose.getTranslation()).getNorm();
             driveController.reset(initialDistance);
         } else {
             driveController.reset(0);
@@ -99,18 +109,38 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void execute() {
-        if (bestTarget.isEmpty()) {
+        if (lockedTargetPose == null) {
             driveSubsystem.stop();
             return;
         }
     
         Pose2d currentPose = localizationSubsystem.getPose();
-        // The target pose is now dynamically calculated and stored in our bestTarget object
-        Pose2d targetPose = bestTarget.get().targetPose;
+        // The target pose is now the locked pose
+        Pose2d targetPose = lockedTargetPose;
+
+        double currentDistance = currentPose.getTranslation().getDistance(targetPose.getTranslation());
+
+        // Phase 1: Vision-guided. If we're far away, keep updating the best target
+        // in case a better one appears or our initial choice becomes invalid.
+        if (!isCloseToTarget && currentDistance > AutoAlignConstants.FINAL_APPROACH_DISTANCE_METERS) {
+            Optional<TargetCost> currentBest = findBestTarget();
+            if (currentBest.isPresent()) {
+                bestTarget = currentBest;
+                lockedTargetId = bestTarget.get().scoringPose.id;
+                lockedTargetPose = bestTarget.get().targetPose; // Update the locked pose
+            } else {
+                // We lost all targets, stop.
+                lockedTargetPose = null;
+                driveSubsystem.stop();
+                return;
+            }
+        } else {
+            // Phase 2: Odometry-guided. We are close, so commit to the last known pose.
+            isCloseToTarget = true;
+        }
         
         // --- Translation Control ---
         Translation2d translationToTarget = targetPose.getTranslation().minus(currentPose.getTranslation());
-        double currentDistance = translationToTarget.getNorm();
         double driveSpeed = -driveController.calculate(currentDistance, 0);
         
         // --- Rotation Control ---
@@ -140,22 +170,18 @@ public class AutoAlignCommand extends Command {
         ChassisSpeeds targetChassisSpeeds = new ChassisSpeeds(finalDriveSpeed, 0, rotationSpeedRadPerSec);
         driveSubsystem.setChassisSpeeds(targetChassisSpeeds);
     
-        SmartDashboard.putString("AutoAlign/TargetID", bestTarget.get().scoringPose.id);
+        SmartDashboard.putString("AutoAlign/TargetID", lockedTargetId);
         SmartDashboard.putNumber("AutoAlign/DistanceError", currentDistance);
         SmartDashboard.putNumber("AutoAlign/RotationError", rotationalErrorDegrees);
+        SmartDashboard.putBoolean("AutoAlign/IsCloseToTarget", isCloseToTarget);
     }
 
     private Optional<TargetCost> findBestTarget() {
-        Optional<Alliance> allianceOpt = DriverStation.getAlliance();
-        if (allianceOpt.isEmpty()) {
-            System.out.println("AutoAlign: No alliance color found.");
-            return Optional.empty();
-        }
-        Alliance alliance = allianceOpt.get();
-
         Set<Integer> visibleTagIds = visionSubsystem.getVisibleTagIds();
-        if (visibleTagIds.isEmpty()) {
-            System.out.println("AutoAlign: No tags visible to any camera.");
+        Optional<Alliance> alliance = DriverStation.getAlliance();
+
+        if (visibleTagIds.isEmpty() || alliance.isEmpty()) {
+            System.out.println("AutoAlign: No tags visible or no alliance detected.");
             return Optional.empty();
         }
 
@@ -165,16 +191,13 @@ public class AutoAlignCommand extends Command {
 
         for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
             if (visibleTagIds.contains(scoringPoseInfo.parentTagId)) {
-                // Dynamically calculate the field-relative pose for this target
-                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance);
+                // Dynamically calculate the pose for this target
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get());
                 
-                targetPoseOpt.ifPresent(targetPose -> {
-                    // If pose is valid, calculate its cost and add it to our list
-                    TargetCost cost = AlignmentCostUtil.calculateCost(
-                        scoringPoseInfo, targetPose, currentPose, velocity, reefState
-                    );
+                if (targetPoseOpt.isPresent()) {
+                    TargetCost cost = AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPoseOpt.get(), currentPose, velocity, reefState);
                     potentialTargets.add(cost);
-                });
+                }
             }
         }
 
@@ -188,21 +211,18 @@ public class AutoAlignCommand extends Command {
     }
 
     private Optional<TargetCost> findTargetById(String id) {
-        Optional<Alliance> allianceOpt = DriverStation.getAlliance();
-        if (allianceOpt.isEmpty()) return Optional.empty();
-        Alliance alliance = allianceOpt.get();
-
         Pose2d currentPose = localizationSubsystem.getPose();
         double velocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond;
+        Optional<Alliance> alliance = DriverStation.getAlliance();
+
+        if (alliance.isEmpty()) return Optional.empty();
 
         for (var scoringPoseInfo : VisionConstants.ALL_SCORING_POSES) {
             if (scoringPoseInfo.id.equals(id)) {
-                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance);
-                
-                // If the pose can be calculated, create and return a TargetCost object for it
-                return targetPoseOpt.map(targetPose -> 
-                    AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPose, currentPose, velocity, reefState)
-                );
+                Optional<Pose2d> targetPoseOpt = VisionConstants.getFieldRelativePose(scoringPoseInfo, alliance.get());
+                if (targetPoseOpt.isPresent()) {
+                    return Optional.of(AlignmentCostUtil.calculateCost(scoringPoseInfo, targetPoseOpt.get(), currentPose, velocity, reefState));
+                }
             }
         }
         return Optional.empty();
@@ -219,6 +239,7 @@ public class AutoAlignCommand extends Command {
         driveSubsystem.stop();
         if (interrupted) {
             lockedTargetId = null;
+            lockedTargetPose = null;
             System.out.println("Auto Align interrupted. Target lock released.");
         }
     }

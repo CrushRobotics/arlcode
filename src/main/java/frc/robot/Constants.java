@@ -14,7 +14,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -106,6 +105,10 @@ public final class Constants {
         public static final double kI_DRIVE = 0.0;
         public static final double kD_DRIVE = 0.0;
         public static final double DRIVE_TOLERANCE_METERS = 0.1;
+
+        // TODO: Tune this distance. Once the robot is closer than this to the target,
+        // it will stop using vision and rely on odometry to finish the approach.
+        public static final double FINAL_APPROACH_DISTANCE_METERS = 1.5;
 
         // TODO: Tune the desired distance the robot should be from the target when aligned.
         public static final double DESIRED_DISTANCE_METERS = 1.0;
@@ -249,7 +252,7 @@ public final class Constants {
     public static final class AutoConstants {
         public static final double kP_DRIVE_TO_POSE = 1.2;
         public static final double kP_TURN_TO_POSE = 0.05;
-        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.6;
+        public static final double DRIVE_TO_POSE_TOLERANCE_METERS = 1.5;
         public static final double TURN_TO_POSE_TOLERANCE_DEGREES = 5.0;
 
         public static final List<Integer> RED_CORAL_COLLECTION_TAG_IDS = List.of(1, 2);
@@ -263,7 +266,8 @@ public final class Constants {
     public static final class FieldConstants {
         public static final double FIELD_LENGTH_METERS = 16.51;
         public static final double FIELD_WIDTH_METERS = 8.2296;
-        //relative to blue alliance origin
+
+        // Corrected AprilTag poses for the 2025 REEFSCAPE field.
         public static final Map<Integer, Pose3d> APRIL_TAG_FIELD_LAYOUT = Map.ofEntries(
             Map.entry(1, new Pose3d(15.5138, 1.0716, 0.4628, new Rotation3d(0, 0, Units.degreesToRadians(120)))),
             Map.entry(2, new Pose3d(16.204, 3.002, 0.6955, new Rotation3d(0, 0, Units.degreesToRadians(180)))),
@@ -290,5 +294,4 @@ public final class Constants {
         );
     }
 }
-
 
