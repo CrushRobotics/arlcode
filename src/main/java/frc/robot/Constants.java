@@ -50,10 +50,9 @@ public final class Constants {
 
 
         // --- Trajectory Following Constants ---
-        // TODO: Use the SysId tool to characterize the drivetrain and find these values.
-        public static final double kS = 0.1; // Volts
-        public static final double kV = 2.0; // Volt-seconds per meter
-        public static final double kA = 0.2; // Volt-seconds-squared per meter
+        public static final double kS = 0.1332; // Volts
+        public static final double kV = 2.1615; // Volt-seconds per meter
+        public static final double kA = 0.2825; // Volt-seconds-squared per meter
 
         // TODO: Tune these PID gains for the TalonFX's internal velocity controller.
         public static final double kP_VELOCITY = 0.1;
