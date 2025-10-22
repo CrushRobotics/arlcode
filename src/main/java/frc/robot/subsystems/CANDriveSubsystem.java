@@ -5,15 +5,14 @@ import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
+import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
-import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -83,6 +82,17 @@ public class CANDriveSubsystem extends SubsystemBase {
         cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     
         fx.getConfigurator().apply(cfg);
+    }
+
+    /**
+     * Sets the voltage of the drivetrain motors directly.
+     * This is used by the SysId routine.
+     * @param leftVolts The voltage to apply to the left side motors.
+     * @param rightVolts The voltage to apply to the right side motors.
+     */
+    public void setVoltage(double leftVolts, double rightVolts) {
+        leftLeader.setControl(new VoltageOut(leftVolts));
+        rightLeader.setControl(new VoltageOut(rightVolts));
     }
 
     public void arcadeDrive(double fwd, double rot) {
@@ -157,6 +167,14 @@ public class CANDriveSubsystem extends SubsystemBase {
         return kinematics.toChassisSpeeds(getWheelSpeeds());
     }
 
+    public TalonFX getLeftLeader() {
+        return leftLeader;
+    }
+
+    public TalonFX getRightLeader() {
+        return rightLeader;
+    }
+
     @Override
     public void periodic() {
         SmartDashboard.putNumber("Left Drive Distance (m)", getLeftDistanceMeters());
@@ -199,3 +217,4 @@ public class CANDriveSubsystem extends SubsystemBase {
         return wheelRps * DriveConstants.WHEEL_CIRCUMFERENCE_METERS;
     }
 }
+

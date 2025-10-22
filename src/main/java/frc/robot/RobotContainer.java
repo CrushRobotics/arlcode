@@ -28,6 +28,7 @@ import frc.robot.commands.ElevatorCommand;
 import frc.robot.commands.ElevatorCommand.ElevatorDirection;
 import frc.robot.commands.MoveArmCommand;
 import frc.robot.commands.MoveArmCommand.ArmDirection;
+import frc.robot.commands.RunSysIDTests;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
 import frc.robot.commands.autos.AutoCommand;
@@ -220,8 +221,9 @@ public class RobotContainer {
     driverController.leftBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     driverController.rightBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
-    //collection alignment. probably wont need for manual, neccesity for auto. just in case. 
-    //driverController.y().whileTrue(new AutoAlignCommand(driveSubsystem,localizationSubsystem, visionSubsystem,reefState,AlignMode.COLLECTING));
+    
+    // Bind the SysId command to the 'start' button
+    driverController.start().whileTrue(new RunSysIDTests(driveSubsystem));
 
     // --- UPDATED Auto Align Binding ---
     AutoAlignCommand autoAlignCommand = new AutoAlignCommand(
@@ -273,3 +275,4 @@ public class RobotContainer {
       // Vision has been removed from simulationPeriodic
   }
 }
+
