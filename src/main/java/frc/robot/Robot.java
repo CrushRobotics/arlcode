@@ -1,9 +1,11 @@
-// Copyright (c) FIRST and other WPILib contributors.
+// Copyright (c) FIRS T and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
 
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.HttpCamera; // Import HttpCamera
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -17,9 +19,17 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    // The CameraServer automatically finds Limelight streams published to NetworkTables.
-    // No manual HttpCamera setup is needed. The dashboard widgets will pick up the
-    // streams named "limelight-right" and "limelight-left" automatically.
+    // We will explicitly create HttpCamera objects and add them to the CameraServer.
+    // This is an alternative to CameraServer.addHttpCamera() and can resolve
+    // some dependency or class path issues.
+
+    // Create and add the left camera
+    HttpCamera limelightLeft = new HttpCamera("limelight-left", "http://limelight-left.local:5801/stream.mjpg");
+    CameraServer.addCamera(limelightLeft);
+
+    // Create and add the right camera
+    HttpCamera limelightRight = new HttpCamera("limelight-right", "http://limelight-right.local:5801/stream.mjpg");
+    CameraServer.addCamera(limelightRight);
   
     m_robotContainer = new RobotContainer();
 
@@ -91,3 +101,4 @@ public class Robot extends TimedRobot {
     m_robotContainer.simulationPeriodic();
   }
 }
+
