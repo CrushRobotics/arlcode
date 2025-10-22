@@ -21,24 +21,42 @@ public final class Main {
    * <p>If you change your main robot class, change the parameter type.
    */
   public static void main(String... args) {
-    // --- Add Port Forwarding for Limelights ---
-    // Use unique Driver Station ports to avoid conflicts.
+    // --- Port Forwarding REMOVED for Testing ---
+    // Relying on Limelight to auto-publish stream URL to NetworkTables
+    // and dashboard to read it from there.
 
-    // --- Limelight Left (Connected via USB at 172.28.0.1, Swapped Ports: Web=5801, Stream=5800) ---
+    System.out.println("Port Forwarding Disabled for Testing.");
+
+    /*
+    // --- Add Port Forwarding for Limelight Left ONLY ---
+    // Focus on the USB connection at 172.28.0.1
+    // Assuming Swapped Ports: Web=5801, Stream=5800
+
+    System.out.println("Setting up Port Forwarding for Limelight-Left (USB)...");
+
     // Forward DS port 5800 (standard web access) -> LL-Left IP:5801 (actual web port)
-    PortForwarder.add(5800, "172.28.0.1", 5801);
+    try {
+        PortForwarder.add(5800, "172.28.0.1", 5801);
+        System.out.println("Forwarding DS 5800 -> 172.28.0.1:5801 (Web Interface)");
+    } catch (Exception e) {
+        System.err.println("Error adding port forward 5800->5801: " + e.getMessage());
+    }
+
     // Forward DS port 5801 (standard stream access) -> LL-Left IP:5800 (actual stream port)
-    PortForwarder.add(5801, "172.28.0.1", 5800);
+     try {
+        PortForwarder.add(5801, "172.28.0.1", 5800);
+        System.out.println("Forwarding DS 5801 -> 172.28.0.1:5800 (Stream)");
+    } catch (Exception e) {
+        System.err.println("Error adding port forward 5801->5800: " + e.getMessage());
+    }
 
-    // --- Limelight Right (Assuming Ethernet + Default Ports: Web=5800, Stream=5801) ---
-    // Forward DS port 5802 -> LL-Right hostname:5800 (Default Web)
-    PortForwarder.add(5802, "limelight-right.local", 5800);
-    // Forward DS port 5803 -> LL-Right hostname:5801 (Default Stream)
-    PortForwarder.add(5803, "limelight-right.local", 5801);
 
-    // Optional: Forward other ports if needed, using unique DS ports
-    // PortForwarder.add(5804, "172.28.0.1", 5804); // Example for LL-Left
-    // PortForwarder.add(5805, "limelight-right.local", 5805); // Example for LL-Right
+    // --- Limelight Right Forwarding REMOVED for testing ---
+    // PortForwarder.add(5802, "limelight-right.local", 5800);
+    // PortForwarder.add(5803, "limelight-right.local", 5801);
+
+    System.out.println("Port forwarding setup complete.");
+    */
 
     // Start the robot code
     RobotBase.startRobot(Robot::new);
