@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+import edu.wpi.first.net.PortForwarder;
 import edu.wpi.first.wpilibj.RobotBase;
 
 /**
@@ -20,6 +21,24 @@ public final class Main {
    * <p>If you change your main robot class, change the parameter type.
    */
   public static void main(String... args) {
+    // --- Add Port Forwarding for Limelights ---
+    // Forward port 5800 for the web interface
+    PortForwarder.add(5800, "limelight-left.local", 5800);
+    PortForwarder.add(5800, "limelight-right.local", 5800);
+    // Forward port 5801 for the camera stream
+    PortForwarder.add(5801, "limelight-left.local", 5801);
+    PortForwarder.add(5801, "limelight-right.local", 5801);
+    // Forward ports 5802-5805 for other Limelight data if needed
+    PortForwarder.add(5802, "limelight-left.local", 5802);
+    PortForwarder.add(5802, "limelight-right.local", 5802);
+    PortForwarder.add(5803, "limelight-left.local", 5803);
+    PortForwarder.add(5803, "limelight-right.local", 5803);
+    PortForwarder.add(5804, "limelight-left.local", 5804);
+    PortForwarder.add(5804, "limelight-right.local", 5804);
+    PortForwarder.add(5805, "limelight-left.local", 5805);
+    PortForwarder.add(5805, "limelight-right.local", 5805);
+
+    // Start the robot code
     RobotBase.startRobot(Robot::new);
   }
 }
