@@ -22,13 +22,17 @@ public final class Main {
    */
   public static void main(String... args) {
     // --- Add Port Forwarding for Limelights ---
-    // Forward port 5800 for the web interface
-    PortForwarder.add(5800, "limelight-left.local", 5800);
-    PortForwarder.add(5800, "limelight-right.local", 5800);
-    // Forward port 5801 for the camera stream
-    PortForwarder.add(5801, "limelight-left.local", 5801);
-    PortForwarder.add(5801, "limelight-right.local", 5801);
-    // Forward ports 5802-5805 for other Limelight data if needed
+    // --- NOTE: Ports are swapped based on user observation (Stream=5800, Web=5801) ---
+
+    // Forward Driver Station port 5800 (standard web) to Limelight port 5801 (actual web)
+    PortForwarder.add(5800, "limelight-left.local", 5801);
+    PortForwarder.add(5800, "limelight-right.local", 5801);
+
+    // Forward Driver Station port 5801 (standard stream) to Limelight port 5800 (actual stream)
+    PortForwarder.add(5801, "limelight-left.local", 5800);
+    PortForwarder.add(5801, "limelight-right.local", 5800);
+
+    // Forward other potential Limelight ports (less critical, but good practice)
     PortForwarder.add(5802, "limelight-left.local", 5802);
     PortForwarder.add(5802, "limelight-right.local", 5802);
     PortForwarder.add(5803, "limelight-left.local", 5803);
@@ -42,3 +46,4 @@ public final class Main {
     RobotBase.startRobot(Robot::new);
   }
 }
+
