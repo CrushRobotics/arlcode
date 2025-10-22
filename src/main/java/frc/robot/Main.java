@@ -22,25 +22,23 @@ public final class Main {
    */
   public static void main(String... args) {
     // --- Add Port Forwarding for Limelights ---
-    // --- NOTE: Ports are swapped based on user observation (Stream=5800, Web=5801) ---
+    // Use unique Driver Station ports to avoid conflicts.
 
-    // Forward Driver Station port 5800 (standard web) to Limelight port 5801 (actual web)
+    // --- Limelight Left (Assuming Swapped Ports: Web=5801, Stream=5800) ---
+    // Forward DS port 5800 (standard web access) -> LL-Left port 5801 (actual web port)
     PortForwarder.add(5800, "limelight-left.local", 5801);
-    PortForwarder.add(5800, "limelight-right.local", 5801);
-
-    // Forward Driver Station port 5801 (standard stream) to Limelight port 5800 (actual stream)
+    // Forward DS port 5801 (standard stream access) -> LL-Left port 5800 (actual stream port)
     PortForwarder.add(5801, "limelight-left.local", 5800);
-    PortForwarder.add(5801, "limelight-right.local", 5800);
 
-    // Forward other potential Limelight ports (less critical, but good practice)
-    PortForwarder.add(5802, "limelight-left.local", 5802);
-    PortForwarder.add(5802, "limelight-right.local", 5802);
-    PortForwarder.add(5803, "limelight-left.local", 5803);
-    PortForwarder.add(5803, "limelight-right.local", 5803);
-    PortForwarder.add(5804, "limelight-left.local", 5804);
-    PortForwarder.add(5804, "limelight-right.local", 5804);
-    PortForwarder.add(5805, "limelight-left.local", 5805);
-    PortForwarder.add(5805, "limelight-right.local", 5805);
+    // --- Limelight Right (Assuming Default Ports: Web=5800, Stream=5801) ---
+    // Forward DS port 5802 (unique for LL-Right web) -> LL-Right port 5800 (default web port)
+    PortForwarder.add(5802, "limelight-right.local", 5800);
+    // Forward DS port 5803 (unique for LL-Right stream) -> LL-Right port 5801 (default stream port)
+    PortForwarder.add(5803, "limelight-right.local", 5801);
+
+    // Optional: Forward other ports if needed, using unique DS ports
+    // PortForwarder.add(5804, "limelight-left.local", 5802); // Example if LL-Left used 5802
+    // PortForwarder.add(5805, "limelight-right.local", 5805); // Example if LL-Right used 5805
 
     // Start the robot code
     RobotBase.startRobot(Robot::new);
