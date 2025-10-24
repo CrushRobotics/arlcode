@@ -107,11 +107,12 @@ public final class AlignmentCostUtil {
 
     /**
      * Calculates the cost based on whether the target peg has already been scored on.
-     * @param uniquePipeId The specific ID of the pipe (e.g., "7_LEFT").
+     * Made public to be accessible by AutoAlignCommand.
+     * @param uniquePipeId The specific ID of the pipe (e.g., "A").
      * @param reefState The current state of scored pegs.
      * @return 1.0 if the peg has been scored, 0.0 otherwise.
      */
-    private static double calculateReefStateCost(String uniquePipeId, ReefState reefState) {
+    public static double calculateReefStateCost(String uniquePipeId, ReefState reefState) {
         // Return a high cost (1.0) if already scored, zero cost otherwise.
         return reefState.isScored(uniquePipeId) ? 1.0 : 0.0;
     }

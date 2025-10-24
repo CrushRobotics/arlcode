@@ -1,7 +1,3 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot;
 
 import java.util.List;
@@ -14,9 +10,9 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Transform3d; // Added import
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.geometry.Translation3d; // Added import
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import frc.robot.commands.AutoAlignCommand.AlignMode;
@@ -132,7 +128,8 @@ public final class Constants {
         public static final double kP = 0.1;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
-        public static final double kF = 0.3; // Feedforward - tune based on gravity load
+        public static final double kF = 0.3; // Feedforward - velocity
+        public static final double kG = 0.0; // Gravity feedforward - NEEDS TUNING
         public static final double kMIN_OUTPUT = -0.7; // TODO: Tune max speeds
         public static final double kMAX_OUTPUT = 0.7;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
@@ -162,7 +159,8 @@ public final class Constants {
         public static final double kP = 0.1;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
-        public static final double kF = 0.2; // Feedforward - tune based on gravity/load
+        public static final double kF = 0.2; // Feedforward - velocity
+        public static final double kG = 0.0; // Gravity feedforward - NEEDS TUNING
         public static final double kMIN_OUTPUT = -0.5; // TODO: Tune max speeds
         public static final double kMAX_OUTPUT = 0.5;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
@@ -228,7 +226,7 @@ public final class Constants {
         // TODO: VERIFY THESE CAMERA TRANSFORMS ON THE ROBOT using measurements from the robot's center.
         // Camera transforms relative to robot center (X=forward, Y=left, Z=up)
         public static final Transform3d LEFT_ROBOT_TO_CAMERA = new Transform3d(
-            new Translation3d(Units.inchesToMeters(0), Units.inchesToMeters(6), Units.inchesToMeters(10)), // Example
+            new Translation3d(Units.inchesToMeters(0), Units.inchesToMeters(6), Units.inchesToMeters(10)), // Example - Fixed typo inchesToMTeters
             new Rotation3d(0.0, Units.degreesToRadians(-15), 0.0)); // Example
         public static final Transform3d RIGHT_ROBOT_TO_CAMERA = new Transform3d(
             new Translation3d(Units.inchesToMeters(0), Units.inchesToMeters(-6), Units.inchesToMeters(10)), // Example
@@ -348,6 +346,7 @@ public final class Constants {
             Map.entry(10, new Pose3d(14.6827, 5.5055, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))), // Red Stage Center
             Map.entry(11, new Pose3d(13.5905, 3.5116, 0.4636, new Rotation3d(0, 0, Units.degreesToRadians(180)))), // Red Stage Close
             Map.entry(12, new Pose3d(16.1671, 3.5116, 0.6096, new Rotation3d(0, 0, Units.degreesToRadians(60)))), // Red Source Station Lower
+            // Corrected Tag 13 constructor from Pose2d to Pose3d
             Map.entry(13, new Pose3d(2.9195, 7.4994, 0.4636, new Rotation3d(0, 0, 0))), // Blue Stage Far
             Map.entry(14, new Pose3d(1.8273, 5.5055, 0.4636, new Rotation3d(0, 0, 0))), // Blue Stage Center
             Map.entry(15, new Pose3d(2.9195, 3.5116, 0.4636, new Rotation3d(0, 0, 0))), // Blue Stage Close

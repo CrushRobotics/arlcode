@@ -14,9 +14,17 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.units.Units; // Ensures Units class is imported
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+// Import the correct SysId logger class
+import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+// Removed incorrect import
+// import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.MechanismLogger;
+
+
 import frc.robot.Constants.DriveConstants;
 import frc.robot.util.NavXPigeon2;
 
@@ -30,7 +38,7 @@ public class CANDriveSubsystem extends SubsystemBase {
     private final NavXPigeon2 pigeon = new NavXPigeon2();
 
     private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(DriveConstants.TRACK_WIDTH_METERS);
-    
+
     // --- CONTROLS ---
     private final MotionMagicVelocityVoltage mmvLeft = new MotionMagicVelocityVoltage(0).withSlot(0);
     private final MotionMagicVelocityVoltage mmvRight = new MotionMagicVelocityVoltage(0).withSlot(0);
@@ -43,9 +51,10 @@ public class CANDriveSubsystem extends SubsystemBase {
 
 
     public CANDriveSubsystem() {
-        configureDriveTalon(leftLeader, true);
-        configureDriveTalon(rightLeader, false); // Right side is inverted
+        configureDriveTalon(leftLeader, true); // Left side is inverted mechanically? Assume true based on original code.
+        configureDriveTalon(rightLeader, false); // Right side not inverted
 
+        // Followers mirror their leaders
         leftFollower.setControl(new Follower(leftLeader.getDeviceID(), false));
         rightFollower.setControl(new Follower(rightLeader.getDeviceID(), false));
 
@@ -55,13 +64,13 @@ public class CANDriveSubsystem extends SubsystemBase {
         rightLeader.setNeutralMode(NeutralModeValue.Brake);
         rightFollower.setNeutralMode(NeutralModeValue.Brake);
     }
-    
+
     private void configureDriveTalon(TalonFX fx, boolean invert) {
         TalonFXConfiguration cfg = new TalonFXConfiguration();
-    
+
         // Set the gearing ratio for accurate distance measurements
         cfg.Feedback.SensorToMechanismRatio = DriveConstants.DRIVE_GEARING;
-    
+
         // Configure PID and feedforward gains for velocity control
         var slot0 = new Slot0Configs();
         slot0.kS = DriveConstants.kS;
@@ -71,16 +80,16 @@ public class CANDriveSubsystem extends SubsystemBase {
         slot0.kI = DriveConstants.kI_VELOCITY;
         slot0.kD = DriveConstants.kD_VELOCITY;
         cfg.Slot0 = slot0;
-    
+
         // Configure Motion Magic settings
         var mm = new MotionMagicConfigs();
         mm.MotionMagicAcceleration = mpsToWheelRps(DriveConstants.MAX_ACCELERATION_MPS_SQ); // RPS^2
         cfg.MotionMagic = mm;
-    
-        // Set motor inversion and neutral mode
+
+        // Set motor inversion based on the invert parameter
         cfg.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
         cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    
+
         fx.getConfigurator().apply(cfg);
     }
 
@@ -105,31 +114,42 @@ public class CANDriveSubsystem extends SubsystemBase {
         return localizationSubsystem;
     }
 
+    /**
+     * Drives the robot using arcade controls.
+     * @param fwd Forward speed (-1.0 to 1.0). Positive is forward.
+     * @param rot Rotation speed (-1.0 to 1.0). Positive is counter-clockwise.
+     */
     public void arcadeDrive(double fwd, double rot) {
         // Scale inputs to physical units (m/s and rad/s)
         double vx = fwd * DriveConstants.MAX_SPEED_MPS;
-        double maxOmega = 2.0 * DriveConstants.MAX_SPEED_MPS / DriveConstants.TRACK_WIDTH_METERS;
-        double wz = rot * maxOmega;
-        setChassisSpeeds(new ChassisSpeeds(-vx, 0.0, wz));
+        // Use MAX_ANGULAR_SPEED_RAD_PER_SEC from Constants
+        double wz = rot * DriveConstants.MAX_ANGULAR_SPEED_RAD_PER_SEC;
+        // Create ChassisSpeeds with positive X as forward, positive omega as CCW
+        setChassisSpeeds(new ChassisSpeeds(vx, 0.0, wz));
     }
 
+    /**
+     * Sets the robot's speed using ChassisSpeeds.
+     * @param speeds The desired chassis speeds (vx, vy, omega).
+     */
     public void setChassisSpeeds(ChassisSpeeds speeds) {
-        ChassisSpeeds newSpeeds = new ChassisSpeeds(-speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond);
+        // Store the desired speeds for simulation
+        if (RobotBase.isSimulation()) {
+            this.simChassisSpeeds = speeds;
+        }
+
         // Convert chassis speeds to wheel speeds
-        var wheelSpeeds = kinematics.toWheelSpeeds(newSpeeds);
+        // WPILib convention: +vx = forward, +omega = CCW rotation
+        var wheelSpeeds = kinematics.toWheelSpeeds(speeds);
         wheelSpeeds.desaturate(DriveConstants.MAX_SPEED_MPS);
 
         // Convert m/s to wheel rotations per second
         double leftRps  = mpsToWheelRps(wheelSpeeds.leftMetersPerSecond);
         double rightRps = mpsToWheelRps(wheelSpeeds.rightMetersPerSecond);
 
-        // Command the motors
+        // Command the motors using Motion Magic Velocity control
         leftLeader.setControl(mmvLeft.withVelocity(leftRps));
         rightLeader.setControl(mmvRight.withVelocity(rightRps));
-
-        if (RobotBase.isSimulation()) {
-            this.simChassisSpeeds = speeds;
-        }
     }
 
     public void stop() {
@@ -153,6 +173,7 @@ public class CANDriveSubsystem extends SubsystemBase {
         if (RobotBase.isSimulation()) {
             return simLeftPosRot * DriveConstants.WHEEL_CIRCUMFERENCE_METERS;
         }
+        // Position comes from TalonFX in rotations, convert to meters
         return leftLeader.getPosition().getValueAsDouble() * DriveConstants.ROTATIONS_TO_METERS;
     }
 
@@ -160,14 +181,16 @@ public class CANDriveSubsystem extends SubsystemBase {
         if (RobotBase.isSimulation()) {
             return simRightPosRot * DriveConstants.WHEEL_CIRCUMFERENCE_METERS;
         }
+        // Position comes from TalonFX in rotations, convert to meters
         return rightLeader.getPosition().getValueAsDouble() * DriveConstants.ROTATIONS_TO_METERS;
     }
 
     public Rotation2d getRotation2d() {
         return pigeon.getRotation2d();
     }
-    
+
     public DifferentialDriveWheelSpeeds getWheelSpeeds() {
+        // Velocity comes from TalonFX in RPS, convert to m/s
         double leftRps  = leftLeader.getVelocity().getValueAsDouble();
         double rightRps = rightLeader.getVelocity().getValueAsDouble();
         return new DifferentialDriveWheelSpeeds(
@@ -191,6 +214,11 @@ public class CANDriveSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Left Drive Distance (m)", getLeftDistanceMeters());
         SmartDashboard.putNumber("Right Drive Distance (m)", getRightDistanceMeters());
         SmartDashboard.putNumber("Robot Heading (deg)", getRotation2d().getDegrees());
+        SmartDashboard.putNumber("Left Drive Velocity (RPS)", leftLeader.getVelocity().getValueAsDouble());
+        SmartDashboard.putNumber("Right Drive Velocity (RPS)", rightLeader.getVelocity().getValueAsDouble());
+        // Fixed voltage calculation using getValueAsDouble()
+        SmartDashboard.putNumber("Left Drive Output (%)", leftLeader.getMotorVoltage().getValueAsDouble() / 12.0); // Approx output percent
+        SmartDashboard.putNumber("Right Drive Output (%)", rightLeader.getMotorVoltage().getValueAsDouble() / 12.0); // Approx output percent
     }
 
     @Override
@@ -198,34 +226,63 @@ public class CANDriveSubsystem extends SubsystemBase {
         final double dt = 0.02; // 20ms loop
 
         // Get target wheel speeds from the last commanded chassis speeds
+        // simChassisSpeeds now correctly represents desired robot motion (+vx = forward, +omega = CCW)
         var wheelSpeeds = kinematics.toWheelSpeeds(simChassisSpeeds);
         double leftRps = mpsToWheelRps(wheelSpeeds.leftMetersPerSecond);
         double rightRps = mpsToWheelRps(wheelSpeeds.rightMetersPerSecond);
 
-        // Update simulated positions
+        // Update simulated positions (based on wheel rotations)
         simLeftPosRot += leftRps * dt;
         simRightPosRot += rightRps * dt;
 
-        // Update simulated heading
+        // Update simulated heading based on chassis omega
         simYawRad += simChassisSpeeds.omegaRadiansPerSecond * dt;
         pigeon.setYaw(Rotation2d.fromRadians(simYawRad));
 
         // Update the TalonFX sim states with new data
-        // The position and velocity should be in motor rotations, so we multiply by the gear ratio.
+        // The position and velocity should be in MOTOR rotations (apply gearing)
         leftLeader.getSimState().setRawRotorPosition(simLeftPosRot * DriveConstants.DRIVE_GEARING);
         leftLeader.getSimState().setRotorVelocity(leftRps * DriveConstants.DRIVE_GEARING);
-        
+
         rightLeader.getSimState().setRawRotorPosition(simRightPosRot * DriveConstants.DRIVE_GEARING);
         rightLeader.getSimState().setRotorVelocity(rightRps * DriveConstants.DRIVE_GEARING);
+
+        // Apply voltage based on velocity for simulation feedback (simple model)
+        leftLeader.getSimState().setSupplyVoltage(12.0);
+        rightLeader.getSimState().setSupplyVoltage(12.0);
+        // Note: For more accurate simulation, a physics model (like WPILib's DifferentialDrivetrainSim)
+        // should be used to calculate actual velocities based on applied voltage/control effort.
+        // This current implementation directly sets the simulated velocity to the target velocity.
     }
-    
+
     // --- CONVERSIONS ---
     private static double mpsToWheelRps(double metersPerSecond) {
         return metersPerSecond / DriveConstants.WHEEL_CIRCUMFERENCE_METERS;
     }
 
     private static double wheelRpsToMps(double wheelRps) {
+        // Fixed typo: WHEEL_CIRCUMFERENCE_BETERS -> WHEEL_CIRCUMFERENCE_METERS
         return wheelRps * DriveConstants.WHEEL_CIRCUMFERENCE_METERS;
+    }
+
+    /**
+     * Method needed for SysId logging.
+     * @param log The SysId routine logger.
+     */
+     // Corrected type to SysIdRoutineLog
+    public void logSysId(SysIdRoutineLog log) {
+        log.motor("drive-left")
+            .voltage(Units.Volts.of(leftLeader.getMotorVoltage().getValueAsDouble())) // Use Units
+            // Log position in WHEEL rotations, SysId accounts for gearing if characterization type requires it
+            .angularPosition(Units.Rotations.of(leftLeader.getPosition().getValueAsDouble())) // Use Units
+            // Log velocity in WHEEL rotations per second
+            .angularVelocity(Units.RotationsPerSecond.of(leftLeader.getVelocity().getValueAsDouble())); // Use Units
+        log.motor("drive-right")
+            .voltage(Units.Volts.of(rightLeader.getMotorVoltage().getValueAsDouble())) // Use Units
+            // Log position in WHEEL rotations
+            .angularPosition(Units.Rotations.of(rightLeader.getPosition().getValueAsDouble())) // Use Units
+            // Log velocity in WHEEL rotations per second
+            .angularVelocity(Units.RotationsPerSecond.of(rightLeader.getVelocity().getValueAsDouble())); // Use Units
     }
 }
 

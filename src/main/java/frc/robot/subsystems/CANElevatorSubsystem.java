@@ -34,7 +34,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
 
         leftConfig = new SparkMaxConfig();
         rightConfig = new SparkMaxConfig();
-        
+
         leftConfig.idleMode(IdleMode.kBrake);
         // Configure PID gains from constants
         leftConfig.closedLoop.pid(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
@@ -45,17 +45,17 @@ public class CANElevatorSubsystem extends SubsystemBase {
 
         leftElevatorMotor.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
         rightElevatorMotor.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
-        
+
         leftEncoder = leftElevatorMotor.getEncoder();
         rightEncoder = rightElevatorMotor.getEncoder();
-        
+
         leftEncoder.setPosition(0);
         rightEncoder.setPosition(0);
 
         pidController = leftElevatorMotor.getClosedLoopController();
     }
 
-    @Override 
+    @Override
     public void periodic()
     {
         SmartDashboard.putNumber("Elevator Position", leftEncoder.getPosition());
@@ -67,7 +67,8 @@ public class CANElevatorSubsystem extends SubsystemBase {
      */
     public void setPosition(double targetRotations) {
         this.setpoint = targetRotations;
-        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ElevatorConstants.kF);
+        // Use kG for gravity feedforward
+        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ElevatorConstants.kG);
     }
 
     /**
@@ -86,19 +87,18 @@ public class CANElevatorSubsystem extends SubsystemBase {
         return Math.abs(leftEncoder.getPosition() - this.setpoint) < ElevatorConstants.kPOSITION_TOLERANCE;
     }
 
-    public void raise() 
+    public void raise()
     {
-        leftElevatorMotor.set(0.4); 
+        leftElevatorMotor.set(ElevatorConstants.MANUAL_RAISE_SPEED);
     }
 
-    public void lower() 
+    public void lower()
     {
-        leftElevatorMotor.set(-0.3);
+        leftElevatorMotor.set(ElevatorConstants.MANUAL_LOWER_SPEED);
     }
 
-    public void stop() 
+    public void stop()
     {
         leftElevatorMotor.setVoltage(0);
     }
 }
-

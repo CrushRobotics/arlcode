@@ -7,10 +7,12 @@ import com.pathplanner.lib.controllers.PPLTVController;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -19,7 +21,7 @@ import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
-import frc.robot.commands.AutoAlign;
+// import frc.robot.commands.AutoAlign; // No longer used
 import frc.robot.commands.AutoAlignCommand;
 import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.ClimberClimbCommand;
@@ -47,6 +49,7 @@ import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.LimelightHelpers.PoseEstimate;
 
 public class RobotContainer {
   // Enum for autonomous modes
@@ -77,12 +80,9 @@ public class RobotContainer {
   private final ReefState reefState = new ReefState();
 
   // The autonomous commands and chooser
-  private final Command autoL3Command;
-  private final Command simpleAutoDriveCommand;
-  private final Command L2SimpleCommand;
-  private final Command autoL2Command;
+  // These are now instantiated in getAutonomousCommand()
   private final SendableChooser<AutoMode> autoChooser = new SendableChooser<>();
-  private SendableChooser<Command> pathPlannerChooser; 
+  private SendableChooser<Command> pathPlannerChooser;
 
 
   // Controllers
@@ -95,44 +95,16 @@ public class RobotContainer {
 
   public RobotContainer() {
     driveSubsystem.setLocalizationSubsystem(localizationSubsystem);
-    // Instantiate the autonomous commands
-    autoL3Command = new AutoL3Command(
-      driveSubsystem, 
-      localizationSubsystem, 
-      visionSubsystem, 
-      armSubsystem, 
-      elevatorSubsystem, 
-      coralIntakeSubsystem, 
-      reefState);
-    
-    simpleAutoDriveCommand = new AutoCommand(driveSubsystem);
-
-    L2SimpleCommand = new L2SimpleCommand(
-      driveSubsystem,
-      armSubsystem,
-      elevatorSubsystem,
-      coralIntakeSubsystem
-    );
-
-    autoL2Command = new AutoL2Command(
-      driveSubsystem,
-      localizationSubsystem,
-      visionSubsystem,
-      reefState,
-      armSubsystem,
-      elevatorSubsystem,
-      coralIntakeSubsystem
-    );
 
     // --- PATHPLANNER SETUP ---
-    RobotConfig robotConfig = null; 
+    RobotConfig robotConfig = null;
     try {
       robotConfig = RobotConfig.fromGUISettings();
     } catch (Exception e) {
         System.err.println("CRITICAL ERROR: Failed to load PathPlanner RobotConfig from GUI settings. Path following will not work.");
         e.printStackTrace();
     }
-    
+
     if (robotConfig != null) {
       AutoBuilder.configure(
           localizationSubsystem::getPose,
@@ -168,7 +140,18 @@ public class RobotContainer {
     NamedCommands.registerCommand("outtakeAlgae", new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     NamedCommands.registerCommand("climb", new ClimberClimbCommand(climberSubsystem));
     NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING));
-    NamedCommands.registerCommand("markScored", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING).getMarkScoredCommand());
+
+    // Updated "markScored" command using ReefState
+    NamedCommands.registerCommand("markScored", new InstantCommand(() -> {
+        String lastTarget = reefState.getLastTargetedPipe();
+        if (lastTarget != null) {
+            reefState.markScored(lastTarget);
+            System.out.println("[NamedCommand] Marked " + lastTarget + " as scored.");
+        } else {
+            System.out.println("[NamedCommand] Mark Scored: No target was locked.");
+        }
+    }, reefState)); // Require ReefState
+
     NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
 
      // Configure the auto chooser
@@ -179,7 +162,7 @@ public class RobotContainer {
      autoChooser.addOption("Simple Auto (Drive Fwd)", AutoMode.SIMPLE_AUTO_DRIVE);
      autoChooser.addOption("L3 Auto", AutoMode.L3_AUTO);
      SmartDashboard.putData("Auto Chooser", autoChooser);
- 
+
      configureBindings();
    }
 
@@ -206,7 +189,7 @@ public class RobotContainer {
           driveSubsystem.arcadeDrive(fwdCubic, rotCubic);
       },
       driveSubsystem));
-      
+
     // --- Your Existing Bindings ---
     operatorController.y().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Up));
     operatorController.a().whileTrue(new ElevatorCommand(elevatorSubsystem, ElevatorDirection.Down));
@@ -223,48 +206,120 @@ public class RobotContainer {
     driverController.leftBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Up));
     driverController.rightBumper().whileTrue(new AlgaeIntakeCommand(algaeIntakeSubsystem, AlgaeIntakeDirection.Down));
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
-    
+
     // Bind the SysId command to the 'start' button
     driverController.start().whileTrue(new RunSysIDTests(driveSubsystem));
 
     // --- UPDATED Auto Align Binding ---
-    AutoAlignCommand autoAlignCommand = new AutoAlignCommand(
-        driveSubsystem, 
-        localizationSubsystem, 
-        visionSubsystem, 
-        reefState,
-        AlignMode.SCORING);
-        
-    driverController.a().whileTrue(new AutoAlign(driveSubsystem));
+    // Use .onTrue() to start the AutoAlignCommand. It handles its own sequence.
+    driverController.a().onTrue(
+        new AutoAlignCommand(
+            driveSubsystem,
+            localizationSubsystem,
+            visionSubsystem,
+            reefState,
+            AlignMode.SCORING
+        )
+    );
 
-    // Button to mark a target as "scored"
+    // Button to mark the *last targeted* pipe (stored in ReefState) as scored
     driverController.b().onTrue(
-        autoAlignCommand.getMarkScoredCommand()
+        new InstantCommand(() -> {
+            String lastTarget = reefState.getLastTargetedPipe();
+            if (lastTarget != null) {
+                reefState.markScored(lastTarget);
+                // Optionally add LED feedback or console print
+                System.out.println("Marked " + lastTarget + " as scored via B button.");
+            } else {
+                System.out.println("Mark Scored (B button): No target was previously locked by AutoAlign.");
+            }
+        }, reefState) // Require ReefState to ensure safe access
     );
 
      // LED subsystem binding
      driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
   }
 
+  /**
+   * Resets the gyroscope to zero.
+   */
+  public void resetGyro() {
+    driveSubsystem.getPigeon().reset();
+  }
+
+    /**
+     * Resets the robot's odometry to the pose estimated by the Limelight(s).
+     * It prioritizes the right Limelight, then the left.
+     * This should be called at the beginning of autonomous or when the robot's
+     * position is known with high certainty (e.g., against a wall).
+     */
+    public void resetOdometryToLimelight() {
+        System.out.println("Attempting to reset odometry using Limelight...");
+        PoseEstimate poseEstimateRight = visionSubsystem.getPoseEstimate("limelight-right");
+        PoseEstimate poseEstimateLeft = visionSubsystem.getPoseEstimate("limelight-left");
+
+        Pose2d llPose = null;
+
+        // Prioritize right Limelight if its estimate is valid
+        if (LimelightHelpers.validPoseEstimate(poseEstimateRight)) {
+            llPose = poseEstimateRight.pose;
+            System.out.println("Using Right Limelight pose for reset: " + llPose);
+        }
+        // Fallback to left Limelight if its estimate is valid and right wasn't
+        else if (LimelightHelpers.validPoseEstimate(poseEstimateLeft)) {
+            llPose = poseEstimateLeft.pose;
+            System.out.println("Using Left Limelight pose for reset: " + llPose);
+        }
+
+        if (llPose != null) {
+            localizationSubsystem.resetPose(llPose);
+            System.out.println("Odometry reset SUCCESSFUL to: " + llPose);
+        } else {
+            System.err.println("Odometry reset FAILED: No valid Limelight pose estimate available.");
+            // Consider resetting to a default known pose if necessary, e.g., new Pose2d()
+            // localizationSubsystem.resetPose(new Pose2d());
+        }
+    }
+
+
   public Command getAutonomousCommand() {
     // Get the selected autonomous mode from the chooser
     AutoMode selected = autoChooser.getSelected();
-    
-    // Return the corresponding command
+
+    // Instantiate the chosen command when requested
     switch (selected) {
       case AUTO_ALIGN_L2_AUTO:
-        return autoL2Command;
+        return new AutoL2Command(
+            driveSubsystem,
+            localizationSubsystem,
+            visionSubsystem,
+            reefState,
+            armSubsystem,
+            elevatorSubsystem,
+            coralIntakeSubsystem);
       case L2_SIMPLE_AUTO:
-        return L2SimpleCommand;
+        return new L2SimpleCommand(
+            driveSubsystem,
+            armSubsystem,
+            elevatorSubsystem,
+            coralIntakeSubsystem);
       case L3_AUTO:
-        return autoL3Command;
+        return new AutoL3Command(
+            driveSubsystem,
+            localizationSubsystem,
+            visionSubsystem,
+            armSubsystem,
+            elevatorSubsystem,
+            coralIntakeSubsystem,
+            reefState);
       case SIMPLE_AUTO_DRIVE:
-        return simpleAutoDriveCommand;
+        return new AutoCommand(driveSubsystem);
       case PATHPLANNER_AUTO:
-        return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : null;
+        // Ensure pathPlannerChooser is not null before trying to get selected
+        return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : Commands.none();
       case DO_NOTHING:
       default:
-        return null;
+        return Commands.none(); // Return an empty command
     }
   }
 
@@ -274,7 +329,6 @@ public class RobotContainer {
 
   public void simulationPeriodic() {
       driveSubsystem.simulationPeriodic();
-      // Vision has been removed from simulationPeriodic
+      // Vision simulation updates happen in LocalizationSubsystem if needed, or manually via updateSimulatedVisionData
   }
 }
-

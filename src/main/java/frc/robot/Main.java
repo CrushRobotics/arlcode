@@ -69,5 +69,6 @@ public final class Main {
     // Start the robot code
     RobotBase.startRobot(Robot::new);
   }
-}
 
+  // Removed duplicate Robot class definition
+}

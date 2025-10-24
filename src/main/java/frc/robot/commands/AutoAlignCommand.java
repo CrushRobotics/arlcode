@@ -3,11 +3,12 @@ package frc.robot.commands;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.Timer; // Added for periodic checking
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import frc.robot.Constants; // Added import
 import frc.robot.Constants.VisionConstants;
 import frc.robot.Constants.VisionConstants.PipeBase; // Import PipeBase
 import frc.robot.Constants.VisionConstants.ScoringTargetInfo;
@@ -17,6 +18,7 @@ import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.AlignmentCostUtil;
 import frc.robot.subsystems.AlignmentCostUtil.TargetCost;
+import frc.robot.LimelightHelpers; // Added import for validPoseEstimate if needed elsewhere, kept for safety
 
 import java.util.Collections;
 import java.util.List;
@@ -26,31 +28,38 @@ import java.util.function.Function; // Added for explicit cast
 import java.util.stream.Collectors;
 
 /**
- * AutoAlignCommand rewritten using fixed pipe poses selected based on distance and AprilTag visibility confirmation.
- * 1. Checks if any relevant scoring AprilTags are visible.
- * 2. Finds the closest *fixed* pipe pose (from Constants.VisionConstants.PIPES) to the robot.
- * 3. Calculates approach and final poses relative to this fixed pipe pose.
- * 4. Generates two trajectories: current -> approach and approach -> final.
- * 5. Executes the trajectories sequentially.
+ * AutoAlignCommand: Finds the best scoring target pipe and drives to it using trajectories.
+ * 1. Defers target selection until command start.
+ * 2. Periodically re-evaluates the best target during the approach phase.
+ * 3. Finds the closest *fixed* pipe pose (from Constants.VisionConstants.PIPES) that is visible and not scored.
+ * 4. Calculates approach and final poses relative to this fixed pipe pose.
+ * 5. Generates trajectories: current -> approach, approach -> final.
+ * 6. Executes trajectories sequentially, updating target if a better one appears during approach.
  */
-public class AutoAlignCommand extends SequentialCommandGroup {
+public class AutoAlignCommand extends Command { // Changed from SequentialCommandGroup
+
+    private final CANDriveSubsystem driveSubsystem;
+    private final LocalizationSubsystem localizationSubsystem;
+    private final VisionSubsystem visionSubsystem;
+    private final ReefState reefState;
+    private final AlignMode alignMode;
+
+    private Command currentTrajectoryCommand = null;
+    private ScoringTargetInfo currentTargetInfo = null;
+    private boolean isApproaching = false;
+    private Timer checkTimer = new Timer();
+    private static final double CHECK_INTERVAL_SECONDS = 0.5; // How often to re-evaluate target
 
     /**
      * Defines the purpose of the alignment, which determines the robot's final orientation.
      */
     public enum AlignMode {
         SCORING,
-        COLLECTING // Note: Pipe poses are likely only for SCORING, collecting might need different logic
+        COLLECTING // Note: Pipe poses are likely only for SCORING
     }
 
-    private final ReefState reefState; // Keep reefState for marking scored
-
-    // Store target info for marking scored later
-    private static ScoringTargetInfo lockedTargetInfo = null;
-
     /**
-     * Creates a new AutoAlignCommand sequence using fixed pipe poses.
-     * Defers construction until scheduled to get current robot pose and alliance.
+     * Creates a new AutoAlignCommand.
      *
      * @param drive         The drive subsystem.
      * @param localization  The localization subsystem.
@@ -59,145 +68,165 @@ public class AutoAlignCommand extends SequentialCommandGroup {
      * @param mode          The alignment mode (SCORING recommended).
      */
     public AutoAlignCommand(CANDriveSubsystem drive, LocalizationSubsystem localization, VisionSubsystem vision, ReefState reef, AlignMode mode) {
+        this.driveSubsystem = drive;
+        this.localizationSubsystem = localization;
+        this.visionSubsystem = vision;
         this.reefState = reef;
-        addRequirements(drive, localization, vision); // Add subsystems as requirements
+        this.alignMode = mode;
 
-        // Use Commands.defer() to delay the creation of the sequence until the command starts
-        addCommands(Commands.defer(() -> {
-            Optional<Alliance> allianceOpt = DriverStation.getAlliance();
-            if (allianceOpt.isEmpty()) {
-                System.err.println("AutoAlignCommand: Alliance not set!");
-                return Commands.none(); // Return an empty command if no alliance
-            }
-            Alliance alliance = allianceOpt.get();
-            Pose2d currentPose = localization.getPose();
-
-            // Find the best target based on fixed poses and tag visibility
-            Optional<TargetCost> bestTargetOpt = findBestTargetFromFixedPipes(vision, alliance, mode, currentPose, reef);
-
-            if (bestTargetOpt.isPresent()) {
-                TargetCost bestTarget = bestTargetOpt.get();
-                if (bestTarget.targetInfo == null) {
-                    System.err.println("AutoAlignCommand: Best target found but targetInfo is null!");
-                    lockedTargetInfo = null;
-                    return Commands.none();
-                }
-
-                lockedTargetInfo = bestTarget.targetInfo; // Store the chosen target info
-
-                SmartDashboard.putString("AutoAlign/TargetID", lockedTargetInfo.id); // Uses PipeBase name now
-                SmartDashboard.putString("AutoAlign/TargetApproachPose", lockedTargetInfo.approachPose.toString());
-                SmartDashboard.putString("AutoAlign/TargetFinalPose", lockedTargetInfo.finalPose.toString());
-                System.out.println("Auto Align Target Locked: ID=" + lockedTargetInfo.id + ", Final=" + lockedTargetInfo.finalPose);
-
-                // Create the sequence of trajectory commands
-                return new SequentialCommandGroup(
-                    new DriveToPoseTrajectoryCommand(drive, localization, currentPose, lockedTargetInfo.approachPose),
-                    new DriveToPoseTrajectoryCommand(drive, localization, lockedTargetInfo.approachPose, lockedTargetInfo.finalPose)
-                ).finallyDo(interrupted -> { // Handle interruption
-                    if (interrupted) {
-                         System.out.println("AutoAlignCommand Sequence Interrupted. Target lock cleared.");
-                         lockedTargetInfo = null; // Clear lock if interrupted
-                     } else {
-                         System.out.println("AutoAlignCommand Sequence Finished normally.");
-                         // Keep lockedTargetInfo for potential marking scored
-                     }
-                 });
-            } else {
-                System.err.println("AutoAlignCommand: No suitable target found (no scoring tags visible or error calculating poses)!");
-                lockedTargetInfo = null; // Clear locked target
-                SmartDashboard.putString("AutoAlign/TargetID", "None");
-                return Commands.none(); // Return an empty command if no target found
-            }
-        }, Set.of(drive, localization, vision))); // Declare dependencies for defer
+        addRequirements(drive, localization, vision, reefState); // Add subsystems as requirements
     }
 
-     /**
-      * Finds the best scoring/collection target using the fixed pipe poses from Constants,
-      * selecting the closest one only if relevant AprilTags are visible.
-      *
-      * @param vision        The vision subsystem.
-      * @param alliance      The current alliance.
-      * @param mode          The alignment mode.
-      * @param currentPose   The robot's current pose.
-      * @param reefState     The state of scored pegs.
-      * @return An Optional containing the best TargetCost, or empty if none are suitable.
-      */
-    private Optional<TargetCost> findBestTargetFromFixedPipes(VisionSubsystem vision, Alliance alliance, AlignMode mode, Pose2d currentPose, ReefState reefState) {
-        Set<Integer> visibleTagIds = vision.getVisibleTagIds();
-        double currentVelocity = 0; // Assuming starting from stop
+    @Override
+    public void initialize() {
+        System.out.println("AutoAlignCommand Initializing...");
+        currentTargetInfo = null; // Reset target
+        currentTrajectoryCommand = null;
+        isApproaching = false;
+        checkTimer.reset();
+        checkTimer.start();
 
-        // 1. Check if ANY valid scoring tag is visible as a prerequisite
-        boolean scoringZoneVisible = false;
-        for(int tagId : VisionConstants.VALID_SCORING_TAG_IDS) {
-            if (visibleTagIds.contains(tagId)) {
-                scoringZoneVisible = true;
-                break;
+        // Initial target selection
+        selectAndStartTarget();
+    }
+
+    private void selectAndStartTarget() {
+        Optional<Alliance> allianceOpt = DriverStation.getAlliance();
+        if (allianceOpt.isEmpty()) {
+            System.err.println("AutoAlignCommand: Alliance not set!");
+            this.cancel(); // Cancel if no alliance
+            return;
+        }
+        Alliance alliance = allianceOpt.get();
+        Pose2d currentPose = localizationSubsystem.getPose();
+
+        Optional<TargetCost> bestTargetOpt = findBestTargetFromFixedPipes(currentPose, alliance);
+
+        if (bestTargetOpt.isPresent()) {
+            TargetCost bestTarget = bestTargetOpt.get();
+            ScoringTargetInfo newTargetInfo = bestTarget.targetInfo;
+
+            // Only switch if it's a new target or the first target
+            if (currentTargetInfo == null || !currentTargetInfo.id.equals(newTargetInfo.id)) {
+                System.out.println("AutoAlignCommand: Selecting Target ID=" + newTargetInfo.id);
+                currentTargetInfo = newTargetInfo;
+                reefState.setLastTargetedPipe(currentTargetInfo.id); // Update ReefState
+
+                SmartDashboard.putString("AutoAlign/TargetID", currentTargetInfo.id);
+                SmartDashboard.putString("AutoAlign/TargetApproachPose", currentTargetInfo.approachPose.toString());
+                SmartDashboard.putString("AutoAlign/TargetFinalPose", currentTargetInfo.finalPose.toString());
+
+                // Cancel any existing trajectory
+                if (currentTrajectoryCommand != null && !currentTrajectoryCommand.isFinished()) {
+                    currentTrajectoryCommand.cancel();
+                }
+
+                // Start the new sequence
+                currentTrajectoryCommand = new SequentialCommandGroup(
+                    new DriveToPoseTrajectoryCommand(driveSubsystem, localizationSubsystem, currentPose, currentTargetInfo.approachPose)
+                        .beforeStarting(() -> isApproaching = true) // Mark start of approach
+                        .andThen(() -> isApproaching = false), // Mark end of approach
+                    new DriveToPoseTrajectoryCommand(driveSubsystem, localizationSubsystem, currentTargetInfo.approachPose, currentTargetInfo.finalPose)
+                );
+                currentTrajectoryCommand.schedule();
+
+            } else {
+                 System.out.println("AutoAlignCommand: Keeping current target ID=" + currentTargetInfo.id);
+            }
+
+        } else {
+            System.err.println("AutoAlignCommand: No suitable target found!");
+            SmartDashboard.putString("AutoAlign/TargetID", "None");
+            // If already driving, let it finish? Or cancel? For now, let it finish the current segment.
+            // If no target was ever found, cancel the command.
+            if (currentTargetInfo == null) {
+                reefState.setLastTargetedPipe(null); // Clear target in ReefState
+                this.cancel();
             }
         }
+    }
+
+
+    @Override
+    public void execute() {
+        // Periodically check for a better target ONLY during the approach phase
+        if (isApproaching && checkTimer.hasElapsed(CHECK_INTERVAL_SECONDS)) {
+            System.out.println("AutoAlignCommand: Re-evaluating target...");
+            selectAndStartTarget(); // Re-select target, may interrupt and restart trajectory
+            checkTimer.reset(); // Reset timer for next check
+        }
+    }
+
+
+    @Override
+    public boolean isFinished() {
+        // Finished when the scheduled trajectory command sequence is done
+        return currentTrajectoryCommand != null && currentTrajectoryCommand.isFinished();
+    }
+
+    @Override
+    public void end(boolean interrupted) {
+        System.out.println("AutoAlignCommand ended. Interrupted: " + interrupted);
+        // Ensure the trajectory is cancelled if the command is interrupted externally
+        if (interrupted && currentTrajectoryCommand != null) {
+            currentTrajectoryCommand.cancel();
+        }
+        driveSubsystem.stop(); // Ensure robot stops
+        if (interrupted) {
+            reefState.setLastTargetedPipe(null); // Clear target if interrupted
+        }
+        checkTimer.stop();
+        // currentTargetInfo and state in ReefState remain if finished normally
+    }
+
+    /**
+     * Finds the best scoring target based on visibility, score status, and distance.
+     */
+    private Optional<TargetCost> findBestTargetFromFixedPipes(Pose2d currentPose, Alliance alliance) {
+        Set<Integer> visibleTagIds = visionSubsystem.getVisibleTagIds();
+        double currentVelocity = driveSubsystem.getChassisSpeeds().vxMetersPerSecond; // Use current speed
+
+        // 1. Check visibility prerequisite
+        boolean scoringZoneVisible = VisionConstants.VALID_SCORING_TAG_IDS.stream()
+                                            .anyMatch(visibleTagIds::contains);
 
         if (!scoringZoneVisible) {
-            System.out.println("AutoAlign/findBestTarget: No VALID_SCORING_TAG_IDS visible. Cannot select fixed target.");
+            System.out.println("AutoAlign/findBest: No VALID_SCORING_TAG_IDS visible.");
             SmartDashboard.putString("AutoAlign/VisibleTags", visibleTagIds.stream().map(String::valueOf).collect(Collectors.joining(", ")));
             return Optional.empty();
         }
-         SmartDashboard.putString("AutoAlign/VisibleTags", visibleTagIds.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+        SmartDashboard.putString("AutoAlign/VisibleTags", visibleTagIds.stream().map(String::valueOf).collect(Collectors.joining(", ")));
 
 
-        // 2. Get all potential target infos (approach/final poses) based on the FIXED PIPES list
-        List<ScoringTargetInfo> potentialTargetInfos = VisionConstants.getAllPotentialTargets(alliance, mode);
-
+        // 2. Get all potential target infos
+        List<ScoringTargetInfo> potentialTargetInfos = VisionConstants.getAllPotentialTargets(alliance, alignMode);
         if (potentialTargetInfos.isEmpty()) {
-             System.out.println("AutoAlign/findBestTarget: No potential target poses generated from fixed PIPES list.");
+            System.out.println("AutoAlign/findBest: No potential target poses generated.");
             return Optional.empty();
         }
 
-        // 3. Calculate the cost for each potential fixed target
+        // 3. Calculate cost for each
         List<TargetCost> potentialTargetsWithCost = potentialTargetInfos.stream()
-            // Explicitly cast lambda to resolve potential inference issues
-            .map((Function<ScoringTargetInfo, TargetCost>) targetInfo -> AlignmentCostUtil.calculateCost(targetInfo, currentPose, currentVelocity, reefState))
+            .map((Function<ScoringTargetInfo, TargetCost>) targetInfo ->
+                 AlignmentCostUtil.calculateCost(targetInfo, currentPose, currentVelocity, reefState))
             .collect(Collectors.toList());
 
-
-        // 4. Sort targets by cost (lowest cost is best - primarily distance now)
+        // 4. Sort by cost (lowest is best)
         Collections.sort(potentialTargetsWithCost);
 
-        // Debugging: Print costs
-        // System.out.println("--- Target Costs (Fixed Pipes) ---");
-        // potentialTargetsWithCost.forEach(tc -> System.out.printf("ID: %s, Cost: %.2f\n", tc.targetInfo.id, tc.cost));
-        // System.out.println("----------------------------------");
-
-
-        // 5. Return the lowest cost target
+        // 5. Return the lowest cost target (which implicitly filters out scored targets due to high cost)
         if (potentialTargetsWithCost.isEmpty()) {
-             System.out.println("AutoAlign/findBestTarget: Cost calculation resulted in empty list.");
+             System.out.println("AutoAlign/findBest: Cost calculation resulted in empty list.");
              return Optional.empty();
         }
-        return Optional.of(potentialTargetsWithCost.get(0)); // Return the closest valid pipe
+        // Check if the best cost is excessively high (meaning all likely scored)
+        // Fully qualify the constant reference to avoid ambiguity
+        if (potentialTargetsWithCost.get(0).cost >= AlignmentCostUtil.calculateReefStateCost("dummy", reefState) * frc.robot.Constants.AutoAlignConstants.REEF_STATE_WEIGHT) {
+             System.out.println("AutoAlign/findBest: All targets appear to be scored (lowest cost is high).");
+             return Optional.empty();
+        }
+
+        return Optional.of(potentialTargetsWithCost.get(0));
     }
-
-
-    /**
-     * Gets an InstantCommand that marks the currently locked target as scored in the ReefState.
-     * Should be triggered after successfully scoring. Uses the PipeBase name as the ID.
-     * @return The command to mark the target as scored.
-     */
-    public Command getMarkScoredCommand() {
-        // Removed reefState as requirement since it's not a Subsystem
-        return new InstantCommand(() -> {
-            if (lockedTargetInfo != null) {
-                reefState.markScored(lockedTargetInfo.id); // Mark using the PipeBase name (e.g., "A", "B")
-                System.out.println("Marked " + lockedTargetInfo.id + " as scored.");
-                // Optionally clear the lock after marking
-                // lockedTargetInfo = null;
-            } else {
-                 System.out.println("Mark Scored: No target was locked.");
-            }
-        }); // Removed reefState requirement
-    }
-
-     // Removed the end() override as it's final in SequentialCommandGroup
-     // Cleanup logic moved to finallyDo() in the constructor's defer block.
-
 }
 

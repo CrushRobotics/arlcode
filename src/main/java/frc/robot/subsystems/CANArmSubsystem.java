@@ -24,18 +24,19 @@ public class CANArmSubsystem extends SubsystemBase {
 
     public CANArmSubsystem() {
         armMotor = new SparkMax(ArmConstants.CORAL_ARM_ID, MotorType.kBrushless);
-        
+
         config = new SparkMaxConfig();
         config.idleMode(IdleMode.kBrake);
-        
+
         // Configure PID gains and add the Feedforward term from constants
         // This is the new way to configure PID constants for 2025
         config.closedLoop.pid(ArmConstants.kP, ArmConstants.kI, ArmConstants.kD);
         // The .ff() method is removed; feedforward is now applied in setReference()
+        // We will use kG as the feedforward term for position control.
         config.closedLoop.outputRange(ArmConstants.kMIN_OUTPUT, ArmConstants.kMAX_OUTPUT);
 
         armMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-        
+
         // The method to get the controller has also been renamed
         pidController = armMotor.getClosedLoopController();
         encoder = armMotor.getEncoder();
@@ -54,9 +55,9 @@ public class CANArmSubsystem extends SubsystemBase {
      */
     public void setPosition(double targetRotations) {
         this.setpoint = targetRotations;
-        // The arbitrary feedforward term (kF) is now passed into setReference.
+        // The arbitrary feedforward term (kG) is now passed into setReference.
         // The '0' is replaced with the correct enum type 'ClosedLoopSlot.kSlot0'.
-        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kF);
+        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kG);
     }
 
     /**
@@ -65,7 +66,7 @@ public class CANArmSubsystem extends SubsystemBase {
      */
     public void holdPosition() {
         setpoint = encoder.getPosition();
-        pidController.setReference(setpoint, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kF);
+        pidController.setReference(setpoint, ControlType.kPosition, ClosedLoopSlot.kSlot0, ArmConstants.kG);
     }
 
     /**
@@ -96,4 +97,3 @@ public class CANArmSubsystem extends SubsystemBase {
         armMotor.setVoltage(0);
     }
 }
-
