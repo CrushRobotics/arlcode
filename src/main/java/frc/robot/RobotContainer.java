@@ -7,7 +7,6 @@ import com.pathplanner.lib.controllers.PPLTVController;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -49,7 +48,6 @@ import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.LocalizationSubsystem;
 import frc.robot.subsystems.ReefState;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.LimelightHelpers.PoseEstimate;
 
 public class RobotContainer {
   // Enum for autonomous modes
@@ -108,7 +106,7 @@ public class RobotContainer {
     if (robotConfig != null) {
       AutoBuilder.configure(
           localizationSubsystem::getPose,
-          localizationSubsystem::resetPose,
+          localizationSubsystem::resetPose, // Pose Estimator reset is done here
           driveSubsystem::getChassisSpeeds,
           driveSubsystem::setChassisSpeeds, // Corrected method reference
           new PPLTVController(0.02),
@@ -141,16 +139,16 @@ public class RobotContainer {
     NamedCommands.registerCommand("climb", new ClimberClimbCommand(climberSubsystem));
     NamedCommands.registerCommand("autoAlign", new AutoAlignCommand(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, AlignMode.SCORING));
 
-    // Updated "markScored" command using ReefState
+    // Updated "markScored" command
     NamedCommands.registerCommand("markScored", new InstantCommand(() -> {
         String lastTarget = reefState.getLastTargetedPipe();
         if (lastTarget != null) {
             reefState.markScored(lastTarget);
-            System.out.println("[NamedCommand] Marked " + lastTarget + " as scored.");
+            System.out.println("[NamedCmd] Marked " + lastTarget + " as scored.");
         } else {
-            System.out.println("[NamedCommand] Mark Scored: No target was locked.");
+            System.out.println("[NamedCmd] Mark Scored: No target was locked.");
         }
-    }, reefState)); // Require ReefState
+    }, reefState));
 
     NamedCommands.registerCommand("cycleLed", new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
 
@@ -211,7 +209,8 @@ public class RobotContainer {
     driverController.start().whileTrue(new RunSysIDTests(driveSubsystem));
 
     // --- UPDATED Auto Align Binding ---
-    // Use .onTrue() to start the AutoAlignCommand. It handles its own sequence.
+    // Use .onTrue() to start the sequence. It will find the best target when pressed
+    // and execute the full sequence (drive to approach, then drive to final).
     driverController.a().onTrue(
         new AutoAlignCommand(
             driveSubsystem,
@@ -222,71 +221,91 @@ public class RobotContainer {
         )
     );
 
-    // Button to mark the *last targeted* pipe (stored in ReefState) as scored
+    // Button to mark the *last targeted* pipe as scored
     driverController.b().onTrue(
         new InstantCommand(() -> {
             String lastTarget = reefState.getLastTargetedPipe();
             if (lastTarget != null) {
                 reefState.markScored(lastTarget);
-                // Optionally add LED feedback or console print
-                System.out.println("Marked " + lastTarget + " as scored via B button.");
+                System.out.println("[Button B] Marked " + lastTarget + " as scored.");
             } else {
-                System.out.println("Mark Scored (B button): No target was previously locked by AutoAlign.");
+                System.out.println("[Button B] Mark Scored: No target was locked.");
             }
-        }, reefState) // Require ReefState to ensure safe access
+        }, reefState)
     );
 
      // LED subsystem binding
      driverController.x().onTrue(new InstantCommand(ledSubsystem::cycleState, ledSubsystem));
+
+     // --- NEW: Manual Reset Bindings ---
+     // Reset Gyro to 0 (e.g., Back button)
+     driverController.back().onTrue(new InstantCommand(this::resetGyro).ignoringDisable(true));
+     // Reset Pose and Gyro using Limelight (e.g., Start button + Back button combo? Reusing Start for now)
+     // driverController.start().onTrue(new InstantCommand(this::resetOdometryAndGyroToLimelight).ignoringDisable(true));
+     // Since Start is used by SysId, let's use a different trigger, maybe Y button + Back?
+     // For simplicity, let's just add another command to the Back button press:
+     driverController.back().onTrue(new InstantCommand(this::resetOdometryAndGyroToLimelight).ignoringDisable(true));
+
   }
 
   /**
    * Resets the gyroscope to zero.
    */
   public void resetGyro() {
+    System.out.println("Resetting Gyro to 0...");
     driveSubsystem.getPigeon().reset();
+    // Also reset the pose estimator's rotation to align with the new gyro reading
+    localizationSubsystem.resetPose(
+        new edu.wpi.first.math.geometry.Pose2d(
+            localizationSubsystem.getPose().getTranslation(),
+            driveSubsystem.getRotation2d() // Use the newly reset gyro angle
+        )
+    );
+    System.out.println("Gyro reset complete.");
   }
 
-    /**
-     * Resets the robot's odometry to the pose estimated by the Limelight(s).
-     * It prioritizes the right Limelight, then the left.
-     * This should be called at the beginning of autonomous or when the robot's
-     * position is known with high certainty (e.g., against a wall).
-     */
-    public void resetOdometryToLimelight() {
-        System.out.println("Attempting to reset odometry using Limelight...");
-        PoseEstimate poseEstimateRight = visionSubsystem.getPoseEstimate("limelight-right");
-        PoseEstimate poseEstimateLeft = visionSubsystem.getPoseEstimate("limelight-left");
+  /**
+   * Attempts to reset BOTH the pose estimator AND the NavX gyro angle
+   * using the pose estimate from the Limelight cameras.
+   * Prefers limelight-right, falls back to limelight-left.
+   * This should ideally be called when the robot is stationary and has a clear view of tags.
+   */
+  public void resetOdometryAndGyroToLimelight() {
+    System.out.println("Attempting to reset Odometry and Gyro to Limelight...");
+    // Prefer right limelight, fallback to left
+    LimelightHelpers.PoseEstimate limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-right");
+    String source = "limelight-right";
 
-        Pose2d llPose = null;
-
-        // Prioritize right Limelight if its estimate is valid
-        if (LimelightHelpers.validPoseEstimate(poseEstimateRight)) {
-            llPose = poseEstimateRight.pose;
-            System.out.println("Using Right Limelight pose for reset: " + llPose);
-        }
-        // Fallback to left Limelight if its estimate is valid and right wasn't
-        else if (LimelightHelpers.validPoseEstimate(poseEstimateLeft)) {
-            llPose = poseEstimateLeft.pose;
-            System.out.println("Using Left Limelight pose for reset: " + llPose);
-        }
-
-        if (llPose != null) {
-            localizationSubsystem.resetPose(llPose);
-            System.out.println("Odometry reset SUCCESSFUL to: " + llPose);
-        } else {
-            System.err.println("Odometry reset FAILED: No valid Limelight pose estimate available.");
-            // Consider resetting to a default known pose if necessary, e.g., new Pose2d()
-            // localizationSubsystem.resetPose(new Pose2d());
-        }
+    if (limelightPoseEstimate == null || !LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
+        limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-left");
+        source = "limelight-left";
     }
+
+    if (limelightPoseEstimate != null && LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
+        System.out.println("Valid Pose Estimate found from " + source + ": " + limelightPoseEstimate.pose);
+
+        // 1. Reset the Pose Estimator
+        localizationSubsystem.resetPose(limelightPoseEstimate.pose);
+        System.out.println("Pose Estimator reset to: " + limelightPoseEstimate.pose);
+
+        // 2. Reset the NavX Gyro Yaw
+        driveSubsystem.getPigeon().setYaw(limelightPoseEstimate.pose.getRotation());
+        System.out.println("NavX Yaw reset to: " + limelightPoseEstimate.pose.getRotation().getDegrees());
+
+    } else {
+        System.err.println("Reset Odometry/Gyro to Limelight FAILED: No valid pose estimate found from either camera.");
+    }
+}
 
 
   public Command getAutonomousCommand() {
     // Get the selected autonomous mode from the chooser
     AutoMode selected = autoChooser.getSelected();
 
-    // Instantiate the chosen command when requested
+    // Reset ReefState at the start of auto
+    reefState.clear();
+
+    // Return the corresponding command, instantiating it now
     switch (selected) {
       case AUTO_ALIGN_L2_AUTO:
         return new AutoL2Command(
@@ -315,11 +334,10 @@ public class RobotContainer {
       case SIMPLE_AUTO_DRIVE:
         return new AutoCommand(driveSubsystem);
       case PATHPLANNER_AUTO:
-        // Ensure pathPlannerChooser is not null before trying to get selected
         return (pathPlannerChooser != null) ? pathPlannerChooser.getSelected() : Commands.none();
       case DO_NOTHING:
       default:
-        return Commands.none(); // Return an empty command
+        return Commands.none();
     }
   }
 
@@ -329,6 +347,7 @@ public class RobotContainer {
 
   public void simulationPeriodic() {
       driveSubsystem.simulationPeriodic();
-      // Vision simulation updates happen in LocalizationSubsystem if needed, or manually via updateSimulatedVisionData
+      // Vision has been removed from simulationPeriodic
   }
 }
+
