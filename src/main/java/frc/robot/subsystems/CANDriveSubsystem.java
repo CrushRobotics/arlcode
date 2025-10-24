@@ -43,8 +43,8 @@ public class CANDriveSubsystem extends SubsystemBase {
 
 
     public CANDriveSubsystem() {
-        configureDriveTalon(leftLeader, false);
-        configureDriveTalon(rightLeader, true); // Right side is inverted
+        configureDriveTalon(leftLeader, true);
+        configureDriveTalon(rightLeader, false); // Right side is inverted
 
         leftFollower.setControl(new Follower(leftLeader.getDeviceID(), false));
         rightFollower.setControl(new Follower(rightLeader.getDeviceID(), false));
@@ -95,17 +95,28 @@ public class CANDriveSubsystem extends SubsystemBase {
         rightLeader.setControl(new VoltageOut(rightVolts));
     }
 
+    private LocalizationSubsystem localizationSubsystem;
+
+    public void setLocalizationSubsystem(LocalizationSubsystem localizationSubsystem) {
+        this.localizationSubsystem = localizationSubsystem;
+    }
+
+    public LocalizationSubsystem getLocalizationSubsystem() {
+        return localizationSubsystem;
+    }
+
     public void arcadeDrive(double fwd, double rot) {
         // Scale inputs to physical units (m/s and rad/s)
         double vx = fwd * DriveConstants.MAX_SPEED_MPS;
         double maxOmega = 2.0 * DriveConstants.MAX_SPEED_MPS / DriveConstants.TRACK_WIDTH_METERS;
         double wz = rot * maxOmega;
-        setChassisSpeeds(new ChassisSpeeds(vx, 0.0, wz));
+        setChassisSpeeds(new ChassisSpeeds(-vx, 0.0, wz));
     }
 
     public void setChassisSpeeds(ChassisSpeeds speeds) {
+        ChassisSpeeds newSpeeds = new ChassisSpeeds(-speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond);
         // Convert chassis speeds to wheel speeds
-        var wheelSpeeds = kinematics.toWheelSpeeds(speeds);
+        var wheelSpeeds = kinematics.toWheelSpeeds(newSpeeds);
         wheelSpeeds.desaturate(DriveConstants.MAX_SPEED_MPS);
 
         // Convert m/s to wheel rotations per second

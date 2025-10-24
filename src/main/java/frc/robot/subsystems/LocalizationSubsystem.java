@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import dev.doglog.DogLog;
 import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
@@ -56,6 +57,7 @@ public class LocalizationSubsystem extends SubsystemBase {
 
         // Update the Field2d widget with the estimated pose
         field.setRobotPose(getPose());
+        DogLog.log("Estimated Pose", getPose());
     }
     
     /**

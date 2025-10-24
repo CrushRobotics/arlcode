@@ -19,6 +19,7 @@ import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
+import frc.robot.commands.AutoAlign;
 import frc.robot.commands.AutoAlignCommand;
 import frc.robot.commands.AutoAlignCommand.AlignMode;
 import frc.robot.commands.ClimberClimbCommand;
@@ -93,6 +94,7 @@ public class RobotContainer {
   private final SlewRateLimiter rotLimiter = new SlewRateLimiter(3.0);
 
   public RobotContainer() {
+    driveSubsystem.setLocalizationSubsystem(localizationSubsystem);
     // Instantiate the autonomous commands
     autoL3Command = new AutoL3Command(
       driveSubsystem, 
@@ -233,7 +235,7 @@ public class RobotContainer {
         reefState,
         AlignMode.SCORING);
         
-    driverController.a().whileTrue(autoAlignCommand);
+    driverController.a().whileTrue(new AutoAlign(driveSubsystem));
 
     // Button to mark a target as "scored"
     driverController.b().onTrue(
