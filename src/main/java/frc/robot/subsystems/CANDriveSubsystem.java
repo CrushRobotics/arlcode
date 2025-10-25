@@ -206,8 +206,8 @@ public class CANDriveSubsystem extends SubsystemBase {
     private final DifferentialDrivetrainSim m_driveSim = new DifferentialDrivetrainSim(
         DCMotor.getKrakenX60Foc(2), // 2 Kraken X60 on each side of the drivetrain.
         DriveConstants.DRIVE_GEARING, // Standard AndyMark Gearing reduction.
-        2.1, // MOI of 2.1 kg m^2 (from CAD model).
-        26.5, // Mass of the robot is 26.5 kg.
+        4.1, // MOI of 2.1 kg m^2 (from CAD model).
+        50.0, // Mass of the robot is 26.5 kg.
         DriveConstants.WHEEL_RADIUS_METERS, // Robot uses 3" radius (6" diameter) wheels.
         0.65, // Distance between wheels is _ meters.
         null // VecBuilder.fill(0.001, 0.001, 0.001, 0.1, 0.1, 0.005, 0.005)

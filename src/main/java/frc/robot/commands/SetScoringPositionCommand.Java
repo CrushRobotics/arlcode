@@ -17,7 +17,8 @@ public class SetScoringPositionCommand extends Command {
   public enum ScoringLevel {
     L2,
     L3,
-    LOADING
+    LOADING,
+    HOME
   }
 
   private final CANArmSubsystem armSubsystem;
@@ -57,6 +58,10 @@ public class SetScoringPositionCommand extends Command {
       case LOADING:
         armTarget = ArmConstants.LOADING_POSITION_ROTATIONS;
         elevatorTarget = ElevatorConstants.LOADING_POSITION_ROTATIONS;
+        break;
+      case HOME:
+        armTarget = ArmConstants.HOME_POSITION_ROTATIONS;
+        elevatorTarget = ElevatorConstants.HOME_POSITION_ROTATIONS;
         break;
     }
   }

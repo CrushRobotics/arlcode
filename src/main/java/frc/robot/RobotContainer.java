@@ -36,6 +36,7 @@ import frc.robot.commands.MoveArmCommand.ArmDirection;
 import frc.robot.commands.RunSysIDTests;
 import frc.robot.commands.SetScoringPositionCommand;
 import frc.robot.commands.SetScoringPositionCommand.ScoringLevel;
+import frc.robot.commands.UpdateMotorConfigs;
 import frc.robot.commands.autos.AutoCommand;
 import frc.robot.commands.autos.AutoL2Command;
 import frc.robot.commands.autos.AutoL3Command;
@@ -172,7 +173,7 @@ public class RobotContainer {
     driveSubsystem.setDefaultCommand(new RunCommand(
       () -> {
           // Get raw inputs
-          double fwd = -driverController.getLeftY();
+          double fwd = driverController.getLeftY();
           double rot = -driverController.getRightX();
 
           // Apply deadband
@@ -201,6 +202,7 @@ public class RobotContainer {
     operatorController.pov(0).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L3));
     operatorController.pov(180).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.L2));
     operatorController.pov(270).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.LOADING));
+    operatorController.pov(90).onTrue(new SetScoringPositionCommand(armSubsystem, elevatorSubsystem, ScoringLevel.HOME));
 
     driverController.rightTrigger().onTrue(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Down, algaeIntakeSubsystem));
     driverController.rightTrigger().onFalse(new AlgaeCommand(algaeSubsystem, AlgaeDirection.Up, algaeIntakeSubsystem));
@@ -209,7 +211,7 @@ public class RobotContainer {
     driverController.y().whileTrue(new ClimberClimbCommand(climberSubsystem));
 
     // Bind the SysId command to the 'start' button
-    driverController.start().whileTrue(new RunSysIDTests(driveSubsystem));
+    driverController.start().onTrue(new UpdateMotorConfigs(elevatorSubsystem, armSubsystem));
 
     // --- UPDATED Auto Align Binding ---
     // Use .onTrue() to start the sequence. It will find the best target when pressed
@@ -242,7 +244,10 @@ public class RobotContainer {
      // Since Start is used by SysId, let's use a different trigger, maybe Y button + Back?
      // For simplicity, let's just add another command to the Back button press:
      driverController.back().onTrue(new InstantCommand(this::resetOdometryAndGyroToLimelight).ignoringDisable(true));
-
+     driverController.povUp().onTrue(Commands.runOnce(()-> elevatorSubsystem.increaseSetpoint()));
+     driverController.povDown().onTrue(Commands.runOnce(()-> elevatorSubsystem.decreaseSetpoint()));
+     driverController.povRight().onTrue(Commands.runOnce(()-> armSubsystem.increaseSetpoint()));
+     driverController.povLeft().onTrue(Commands.runOnce(()-> armSubsystem.decreaseSetpoint()));
   }
 
   /**

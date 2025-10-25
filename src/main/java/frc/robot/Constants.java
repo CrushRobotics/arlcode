@@ -40,7 +40,7 @@ public final class Constants {
         public static final int RIGHT_FOLLOWER_ID = 6;
         public static final double DRIVE_GEARING = 8.26; // TODO: Verify drive gearing ratio
         public static final double WHEEL_RADIUS_METERS = Units.inchesToMeters(3.0); // TODO: Verify wheel radius
-        public static final double TRACK_WIDTH_METERS = 0.65; // TODO: Verify track width measurement
+        public static final double TRACK_WIDTH_METERS = 0.60; // TODO: Verify track width measurement
 
         public static final double WHEEL_CIRCUMFERENCE_METERS = 2 * Math.PI * WHEEL_RADIUS_METERS;
         // Conversion factor from motor rotations to linear distance (meters)
@@ -49,12 +49,12 @@ public final class Constants {
 
         // --- Trajectory Following Constants ---
         // TODO: Characterize the drivetrain using SysId to get accurate values.
-        public static final double kS = 0.1332; // Volts
-        public static final double kV = 2.1615; // Volt-seconds per meter
-        public static final double kA = 0.2825; // Volt-seconds-squared per meter
+        public static final double kS = 0.0189; // Volts
+        public static final double kV = 0.9435; // Volt-seconds per meter
+        public static final double kA = 0.0121; // Volt-seconds-squared per meter
 
         // TODO: Tune these PID gains for the TalonFX's internal velocity controller, especially if using Ramsete or Motion Magic.
-        public static final double kP_VELOCITY = 0.1;
+        public static final double kP_VELOCITY = 4.0;
         public static final double kI_VELOCITY = 0.0;
         public static final double kD_VELOCITY = 0.0;
 
@@ -126,18 +126,19 @@ public final class Constants {
         public static final int ELEVATOR_FOLLOWER_ID = 4;
 
         // TODO: Tune Elevator PID gains for position control
-        public static final double kP = 0.1;
+        public static final double kP = 0.4;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.3; // Feedforward - velocity
-        public static final double kG = 0.1; // Gravity feedforward - NEEDS TUNING
-        public static final double kMIN_OUTPUT = -0.8; // TODO: Tune max speeds
-        public static final double kMAX_OUTPUT = 0.8;
+        public static final double kG = 0.0; // Gravity feedforward - NEEDS TUNING
+        public static final double kMIN_OUTPUT = -0.95; // TODO: Tune max speeds
+        public static final double kMAX_OUTPUT = 0.95;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings at desired heights.
-        public static final double L2_POSITION_ROTATIONS = 27.3;
-        public static final double L3_POSITION_ROTATIONS = 44.02;
-        public static final double LOADING_POSITION_ROTATIONS = 57.6;
+        public static final double L2_POSITION_ROTATIONS = 9.64;
+        public static final double L3_POSITION_ROTATIONS = 31.6;
+        public static final double LOADING_POSITION_ROTATIONS = 55.6;
+        public static final double HOME_POSITION_ROTATIONS = 0.;
         // TODO: Tune manual control speeds.
         public static final double MANUAL_RAISE_SPEED = 0.4;
         public static final double MANUAL_LOWER_SPEED = -0.3;
@@ -157,7 +158,7 @@ public final class Constants {
         public static final int CORAL_ARM_ID = 3;
 
         // TODO: Tune Arm PID gains for position control
-        public static final double kP = 0.2;
+        public static final double kP = 0.3;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.0; // Feedforward - velocity
@@ -166,8 +167,8 @@ public final class Constants {
         public static final double kMAX_OUTPUT = 1.0;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings.
-        public static final double L2_POSITION_ROTATIONS = -15;
-        public static final double L3_POSITION_ROTATIONS = -13;
+        public static final double L2_POSITION_ROTATIONS = -6.1;
+        public static final double L3_POSITION_ROTATIONS = -6.1;
         public static final double HOME_POSITION_ROTATIONS = 0.0; // Assumed zero point
         public static final double LOADING_POSITION_ROTATIONS = 50.0;
         // TODO: Tune manual control speed.

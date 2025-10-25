@@ -8,11 +8,17 @@ import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.MAXMotionConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+
+import dev.doglog.DogLog;
+
 import com.revrobotics.spark.config.MAXMotionConfig.MAXMotionPositionMode;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
+import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ElevatorConstants;
@@ -30,6 +36,31 @@ public class CANElevatorSubsystem extends SubsystemBase {
     private final SparkClosedLoopController pidController;
     private double setpoint;
 
+    public final DoubleSubscriber kP = DogLog.tunable("/Elevator/P", ElevatorConstants.kP);
+    public final DoubleSubscriber kG = DogLog.tunable("/Elevator/G", ElevatorConstants.kG);
+
+    public final DoubleSubscriber kMaxVelocityRPS = DogLog.tunable("/Elevator/Max Velocity RPS", 350.0);
+    public final DoubleSubscriber kMaxAccelRPS2 = DogLog.tunable("/Elevator/Max Accel RPS2", 120.0);
+
+    public ProfiledPIDController trapezoidController = new ProfiledPIDController(kP.get(), 0, 0, new Constraints(kMaxVelocityRPS.get(), kMaxAccelRPS2.get()));
+
+    public void applyConfigs() {
+        trapezoidController = new ProfiledPIDController(kP.get(), 0, 0, new Constraints(kMaxVelocityRPS.get(), kMaxAccelRPS2.get()));
+        // Configure PID gains from constants
+        // leftConfig.closedLoop
+        // .apply(new MAXMotionConfig()
+        // .maxVelocity(kMaxVelocityRPS.get())
+        // .maxAcceleration(kMaxAccelRPS2.get()));
+        // leftConfig.closedLoop.outputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
+        leftConfig.closedLoop.pidf(kP.get(), ElevatorConstants.kI, ElevatorConstants.kD, kG.get());
+        leftConfig.idleMode(IdleMode.kBrake);
+        rightConfig.idleMode(IdleMode.kBrake);
+        rightConfig.follow(leftElevatorMotor, true);
+
+        leftElevatorMotor.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        rightElevatorMotor.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    }
+
     public CANElevatorSubsystem() {
         leftElevatorMotor = new SparkMax(ElevatorConstants.ELEVATOR_LEADER_ID, MotorType.kBrushless);
         rightElevatorMotor = new SparkMax(ElevatorConstants.ELEVATOR_FOLLOWER_ID, MotorType.kBrushless);
@@ -37,20 +68,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
         leftConfig = new SparkMaxConfig();
         rightConfig = new SparkMaxConfig();
 
-        leftConfig.idleMode(IdleMode.kBrake);
-        // Configure PID gains from constants
-        leftConfig.closedLoop.pid(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD)
-        .apply(new MAXMotionConfig()
-        .maxVelocity(30)
-        .maxAcceleration(15)
-        .positionMode(MAXMotionPositionMode.kMAXMotionTrapezoidal));
-        leftConfig.closedLoop.outputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
-
-        rightConfig.idleMode(IdleMode.kBrake);
-        rightConfig.follow(leftElevatorMotor, true);
-
-        leftElevatorMotor.configure(leftConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
-        rightElevatorMotor.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+        applyConfigs();
 
         leftEncoder = leftElevatorMotor.getEncoder();
         rightEncoder = rightElevatorMotor.getEncoder();
@@ -64,7 +82,18 @@ public class CANElevatorSubsystem extends SubsystemBase {
     @Override
     public void periodic()
     {
-        SmartDashboard.putNumber("Elevator Position", leftEncoder.getPosition());
+        double position = leftEncoder.getPosition();
+        DogLog.log("Elevator Position", position);
+        double speed = trapezoidController.calculate(position, setpoint);
+        leftElevatorMotor.set(speed);
+    }
+
+    public void increaseSetpoint() {
+        setpoint++;
+    }
+
+    public void decreaseSetpoint() {
+        setpoint--;
     }
 
     /**
@@ -74,7 +103,8 @@ public class CANElevatorSubsystem extends SubsystemBase {
     public void setPosition(double targetRotations) {
         this.setpoint = targetRotations;
         // Use kG for gravity feedforward
-        pidController.setReference(targetRotations, ControlType.kMAXMotionPositionControl, ClosedLoopSlot.kSlot0, ElevatorConstants.kG);
+
+        // pidController.setReference(targetRotations, ControlType.kPosition);
     }
 
     /**

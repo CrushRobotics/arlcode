@@ -11,12 +11,12 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 public class AutoHelpers {
 
   public static final double kMaxLinearVelocity = 3.5;
-  public static final double kMaxLinearAcceleration = 3;
+  public static final double kMaxLinearAcceleration = 2.5;
   public static final double kMaxLinearVelocityPerSide = 3.5;
 
   public static final DoubleSubscriber kApproachOffset = DogLog.tunable("AutoAlign/Approach Offset", -0.7);
-  public static final DoubleSubscriber kScoreOffset = DogLog.tunable("AutoAlign/Score Offset", -0.5);;
-  public static final DoubleSubscriber kArmOffset = DogLog.tunable("AutoAlign/Arm Offset", Units.inchesToMeters(7));
+  public static final DoubleSubscriber kScoreOffset = DogLog.tunable("AutoAlign/Score Offset", -Units.inchesToMeters(19.5 + 11 + 1));
+  public static final DoubleSubscriber kArmOffset = DogLog.tunable("AutoAlign/Arm Offset", -Units.inchesToMeters(2.5));
 
   public static final double kApproachLinearTolerance = 0.2;
   public static final double kApproachAngularTolerance = 10;

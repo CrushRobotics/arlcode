@@ -46,7 +46,7 @@ public class AutoL2Command extends SequentialCommandGroup {
             Commands.runOnce(()-> {
                     if (RobotBase.isSimulation()) {
                         Pose2d bluePose = new Pose2d(7.5, 5.95, Rotation2d.k180deg);
-                        Pose2d redPose = new Pose2d(10.2, 1.85, Rotation2d.kZero);
+                        Pose2d redPose = new Pose2d(10.2, 3.5, Rotation2d.kZero);
                         boolean red = DriverStation.getAlliance().get() == Alliance.Red;
                         
                         localizationSubsystem.resetPose(red ? redPose : bluePose);
