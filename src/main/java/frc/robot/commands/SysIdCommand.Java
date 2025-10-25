@@ -1,9 +1,9 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.subsystems.CANDriveSubsystem;
-import edu.wpi.first.wpilibj.sysid.SysIdRoutine;
-import edu.wpi.first.wpilibj.sysid.SysIdRoutine.Direction;
 
 /**
  * A command that provides the individual characterization tests for the SysId tool.
@@ -28,7 +28,7 @@ public class SysIdCommand {
             // The "mechanism" to characterize, which holds the methods to call
             new SysIdRoutine.Mechanism(
                 // This method is called by the routine to apply voltage to the motors
-                (voltage) -> drive.setVoltage(voltage.getAsDouble(), voltage.getAsDouble()),
+                (voltage) -> drive.setVoltage(voltage.baseUnitMagnitude(), voltage.baseUnitMagnitude()),
                 // This method is called by the routine to log the state of the motors
                 drive::logSysId,
                 // This is the subsystem requirement

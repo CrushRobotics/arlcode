@@ -8,6 +8,7 @@ import com.pathplanner.lib.controllers.PPLTVController;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -15,10 +16,12 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.AlgaeCommand;
 import frc.robot.commands.AlgaeCommand.AlgaeDirection;
 import frc.robot.commands.AlgaeIntakeCommand;
+import frc.robot.commands.AutoAlign;
 import frc.robot.commands.AlgaeIntakeCommand.AlgaeIntakeDirection;
 // import frc.robot.commands.AutoAlign; // No longer used
 import frc.robot.commands.AutoAlignCommand;
@@ -177,14 +180,14 @@ public class RobotContainer {
           rot = MathUtil.applyDeadband(rot, OperatorConstants.CONTROLLER_DEADZONE);
 
           // Apply slew rate limiting
-          double fwdLimited = fwdLimiter.calculate(fwd);
-          double rotLimited = rotLimiter.calculate(rot);
+          double fwdLimited = fwd;
+          double rotLimited = rot;
 
           // Apply cubic curve for finer control
           double fwdCubic = Math.copySign(fwdLimited * fwdLimited * fwdLimited, fwdLimited);
           double rotCubic = Math.copySign(rotLimited * rotLimited * rotLimited, rotLimited);
 
-          driveSubsystem.arcadeDrive(fwdCubic, rotCubic);
+          driveSubsystem.arcadeDrive(fwdCubic * DriveConstants.MAX_SPEED_MPS, rotCubic * DriveConstants.MAX_ANGULAR_SPEED_RAD_PER_SEC);
       },
       driveSubsystem));
 
@@ -211,14 +214,8 @@ public class RobotContainer {
     // --- UPDATED Auto Align Binding ---
     // Use .onTrue() to start the sequence. It will find the best target when pressed
     // and execute the full sequence (drive to approach, then drive to final).
-    driverController.a().onTrue(
-        new AutoAlignCommand(
-            driveSubsystem,
-            localizationSubsystem,
-            visionSubsystem,
-            reefState,
-            AlignMode.SCORING
-        )
+    driverController.a().whileTrue(
+      new AutoAlign(driveSubsystem)
     );
 
     // Button to mark the *last targeted* pipe as scored
@@ -227,7 +224,7 @@ public class RobotContainer {
             String lastTarget = reefState.getLastTargetedPipe();
             if (lastTarget != null) {
                 reefState.markScored(lastTarget);
-                System.out.println("[Button B] Marked " + lastTarget + " as scored.");
+                // System.out.println("[Button B] Marked " + lastTarget + " as scored.");
             } else {
                 System.out.println("[Button B] Mark Scored: No target was locked.");
             }
@@ -252,7 +249,7 @@ public class RobotContainer {
    * Resets the gyroscope to zero.
    */
   public void resetGyro() {
-    System.out.println("Resetting Gyro to 0...");
+    // System.out.println("Resetting Gyro to 0...");
     driveSubsystem.getPigeon().reset();
     // Also reset the pose estimator's rotation to align with the new gyro reading
     localizationSubsystem.resetPose(
@@ -261,7 +258,7 @@ public class RobotContainer {
             driveSubsystem.getRotation2d() // Use the newly reset gyro angle
         )
     );
-    System.out.println("Gyro reset complete.");
+    // System.out.println("Gyro reset complete.");
   }
 
   /**
@@ -271,7 +268,7 @@ public class RobotContainer {
    * This should ideally be called when the robot is stationary and has a clear view of tags.
    */
   public void resetOdometryAndGyroToLimelight() {
-    System.out.println("Attempting to reset Odometry and Gyro to Limelight...");
+    // System.out.println("Attempting to reset Odometry and Gyro to Limelight...");
     // Prefer right limelight, fallback to left
     LimelightHelpers.PoseEstimate limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-right");
     String source = "limelight-right";
@@ -282,15 +279,15 @@ public class RobotContainer {
     }
 
     if (limelightPoseEstimate != null && LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
-        System.out.println("Valid Pose Estimate found from " + source + ": " + limelightPoseEstimate.pose);
+        // System.out.println("Valid Pose Estimate found from " + source + ": " + limelightPoseEstimate.pose);
 
         // 1. Reset the Pose Estimator
         localizationSubsystem.resetPose(limelightPoseEstimate.pose);
-        System.out.println("Pose Estimator reset to: " + limelightPoseEstimate.pose);
+        // System.out.println("Pose Estimator reset to: " + limelightPoseEstimate.pose);
 
         // 2. Reset the NavX Gyro Yaw
         driveSubsystem.getPigeon().setYaw(limelightPoseEstimate.pose.getRotation());
-        System.out.println("NavX Yaw reset to: " + limelightPoseEstimate.pose.getRotation().getDegrees());
+        // System.out.println("NavX Yaw reset to: " + limelightPoseEstimate.pose.getRotation().getDegrees());
 
     } else {
         System.err.println("Reset Odometry/Gyro to Limelight FAILED: No valid pose estimate found from either camera.");
@@ -299,6 +296,9 @@ public class RobotContainer {
 
 
   public Command getAutonomousCommand() {
+    if (RobotBase.isSimulation()) {
+      return new AutoL2Command(driveSubsystem, localizationSubsystem, visionSubsystem, reefState, armSubsystem, elevatorSubsystem, coralIntakeSubsystem);
+    }
     // Get the selected autonomous mode from the chooser
     AutoMode selected = autoChooser.getSelected();
 
@@ -341,13 +341,5 @@ public class RobotContainer {
     }
   }
 
-  public void simulationInit() {
-      // Simulation init can be left empty if not used.
-  }
-
-  public void simulationPeriodic() {
-      driveSubsystem.simulationPeriodic();
-      // Vision has been removed from simulationPeriodic
-  }
 }
 

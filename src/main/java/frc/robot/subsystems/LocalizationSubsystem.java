@@ -1,9 +1,13 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.Utils;
+
 import dev.doglog.DogLog;
 import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -41,6 +45,7 @@ public class LocalizationSubsystem extends SubsystemBase {
                 new Pose2d()); // Start at (0,0)
 
         SmartDashboard.putData("Field", field);
+        DogLog.log("Estimated Pose", getPose());
     }
 
     @Override
@@ -51,9 +56,11 @@ public class LocalizationSubsystem extends SubsystemBase {
                 driveSubsystem.getLeftDistanceMeters(),
                 driveSubsystem.getRightDistanceMeters());
 
-        // Fuse vision data from BOTH Limelights
-        addVisionMeasurement("limelight-right");
-        addVisionMeasurement("limelight-left");
+        if (!Utils.isSimulation()) {
+            // Fuse vision data from BOTH Limelights
+            addVisionMeasurement("limelight-right");
+            addVisionMeasurement("limelight-left");
+        }
 
         // Update the Field2d widget with the estimated pose
         field.setRobotPose(getPose());

@@ -30,7 +30,7 @@ public final class Constants {
     public static class OperatorConstants {
         public static final int DRIVER_CONTROLLER_PORT = 0;
         public static final int OPERATOR_CONTROLLER_PORT = 1;
-        public static final double CONTROLLER_DEADZONE = 0.2;
+        public static final double CONTROLLER_DEADZONE = 0.15;
     }
 
     public static final class DriveConstants {
@@ -60,8 +60,9 @@ public final class Constants {
 
         // --- Robot Speed Limits ---
         // TODO: Tune these values based on robot performance and testing.
-        public static final double MAX_SPEED_MPS = 3.0; // Meters per second
-        public static final double MAX_ACCELERATION_MPS_SQ = 2.0; // Meters per second squared
+        public static final double MAX_SPEED_MPS = 3.5; // Meters per second
+        public static final double MAX_SPEED_MPS_PER_SIDE = 4.0; // Meters per second
+        public static final double MAX_ACCELERATION_MPS_SQ = 25.0; // Meters per second squared
         public static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.PI * 1.5; // Radians per second
 
         // Ramsete Controller parameters (defaults are usually okay)
@@ -129,9 +130,9 @@ public final class Constants {
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.3; // Feedforward - velocity
-        public static final double kG = 0.0; // Gravity feedforward - NEEDS TUNING
-        public static final double kMIN_OUTPUT = -0.7; // TODO: Tune max speeds
-        public static final double kMAX_OUTPUT = 0.7;
+        public static final double kG = 0.1; // Gravity feedforward - NEEDS TUNING
+        public static final double kMIN_OUTPUT = -0.8; // TODO: Tune max speeds
+        public static final double kMAX_OUTPUT = 0.8;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings at desired heights.
         public static final double L2_POSITION_ROTATIONS = 27.3;
@@ -156,13 +157,13 @@ public final class Constants {
         public static final int CORAL_ARM_ID = 3;
 
         // TODO: Tune Arm PID gains for position control
-        public static final double kP = 0.1;
+        public static final double kP = 0.2;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
-        public static final double kF = 0.2; // Feedforward - velocity
+        public static final double kF = 0.0; // Feedforward - velocity
         public static final double kG = 0.0; // Gravity feedforward - NEEDS TUNING
-        public static final double kMIN_OUTPUT = -0.5; // TODO: Tune max speeds
-        public static final double kMAX_OUTPUT = 0.5;
+        public static final double kMIN_OUTPUT = -1.0; // TODO: Tune max speeds
+        public static final double kMAX_OUTPUT = 1.0;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings.
         public static final double L2_POSITION_ROTATIONS = -15;

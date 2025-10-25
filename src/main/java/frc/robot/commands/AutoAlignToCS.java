@@ -8,11 +8,10 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-import frc.robot.AutoHelpers;
-import frc.robot.AutoHelpers.PipeBase;
 import frc.robot.Constants.AutoAlignConstants;
 import frc.robot.subsystems.*;
-
+import frc.robot.AutoHelpers;
+import frc.robot.AutoHelpers.*;
 import java.util.List;
 
 import dev.doglog.DogLog;
@@ -27,57 +26,53 @@ import dev.doglog.DogLog;
  * This keeps heading embedded in the poses (TrajectoryGenerator will interpolate
  * heading from current to goal). Stopping between legs helps staging.
  */
-public class AutoAlign extends SequentialCommandGroup {
+public class AutoAlignToCS extends SequentialCommandGroup {
+
+  public enum CoralStationSide {
+    LEFT,
+    RIGHT
+  }
+
+
   Pose2d basePose = Pose2d.kZero;
   Pose2d finalPose = Pose2d.kZero;
   Pose2d approachPose = Pose2d.kZero;
   CANDriveSubsystem drive;
 
-  public void updateTargets() {
-    // Compute plan now (so the sequence is fixed when scheduled)
-    Pose2d robot = drive.getLocalizationSubsystem().getPose();
+  public AutoAlignToCS(CANDriveSubsystem drive, CoralStationSide cs) {
+    this.drive = drive;
     boolean red  = DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue)
                     == DriverStation.Alliance.Red;
-
-    // Pick the closest pipe (by translation distance)
-    PipeBase best = null;
-    double bestDist = Double.POSITIVE_INFINITY;
-    for (PipeBase p : AutoHelpers.PIPES) {
-      Pose2d base = red ? p.red() : p.blue();
-      double d = base.getTranslation().getDistance(robot.getTranslation());
-      if (d < bestDist) { bestDist = d; best = p; }
+    if (cs == CoralStationSide.LEFT) {
+      basePose = (red) ? AutoHelpers.csLeftRed : AutoHelpers.csLeftBlue;
+    } else {
+      basePose = (red) ? AutoHelpers.csRightRed : AutoHelpers.csRightBlue;
     }
 
-    basePose = red ? best.red() : best.blue();
-
     // Final stop: DESIRED_DISTANCE in front of peg (i.e., along +X of peg frame into the reef face)
-    finalPose = basePose.transformBy(new Transform2d(
-        new Translation2d(AutoHelpers.kScoreOffset.get(), AutoHelpers.kArmOffset.get()),
-        Rotation2d.kZero));
+    finalPose = basePose;
     finalPose = new Pose2d(finalPose.getTranslation(), basePose.getRotation()); // enforce heading
 
     // Approach: 1.0 m further back along -X of peg
     approachPose = finalPose.transformBy(new Transform2d(
-        new Translation2d(AutoHelpers.kApproachOffset.get(), 0.0),
+        new Translation2d(-AutoHelpers.kApproachOffset.get(), 0.0),
         Rotation2d.kZero));
     approachPose = new Pose2d(approachPose.getTranslation(), basePose.getRotation()); // enforce heading
 
     DogLog.log("AutoAlign/HasTarget", true);
-    DogLog.log("AutoAlign/Pipe", best.name());
+    DogLog.log("AutoAlign/Coral Station Side", cs.name());
     DogLog.log("AutoAlign/Base", basePose);
     DogLog.log("AutoAlign/Approach", approachPose);
     DogLog.log("AutoAlign/Final", finalPose);
-  }
-
-  public AutoAlign(CANDriveSubsystem drive) {
-    this.drive = drive;
-    // Compute plan now (so the sequence is fixed when scheduled)
-    updateTargets();
     // Simple chain: current -> approach -> final
     addCommands(
-        Commands.runOnce(()-> updateTargets()),
-        new DriveToPose(drive, ()-> approachPose, ()-> AutoHelpers.kApproachLinearTolerance, ()-> AutoHelpers.kApproachAngularTolerance, false),
-        new DriveToPose(drive, ()-> finalPose, ()-> AutoHelpers.kScoreLinearTolerance, ()-> AutoHelpers.kScoreAngularTolerance, false)
+        Commands.runOnce(()-> {
+          DogLog.log("AutoAlign/Base", basePose);
+          DogLog.log("AutoAlign/Approach", approachPose);
+          DogLog.log("AutoAlign/Final", finalPose);
+        }),
+        new DriveToPose(drive, ()-> approachPose, ()-> AutoHelpers.kApproachLinearTolerance, ()-> AutoHelpers.kApproachAngularTolerance, true),
+        new DriveToPose(drive, ()-> finalPose, ()-> AutoHelpers.kScoreLinearTolerance, ()-> AutoHelpers.kScoreAngularTolerance, true)
     );
   }
 }

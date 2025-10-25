@@ -6,7 +6,9 @@ import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.config.MAXMotionConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.MAXMotionConfig.MAXMotionPositionMode;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
@@ -37,7 +39,11 @@ public class CANElevatorSubsystem extends SubsystemBase {
 
         leftConfig.idleMode(IdleMode.kBrake);
         // Configure PID gains from constants
-        leftConfig.closedLoop.pid(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
+        leftConfig.closedLoop.pid(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD)
+        .apply(new MAXMotionConfig()
+        .maxVelocity(30)
+        .maxAcceleration(15)
+        .positionMode(MAXMotionPositionMode.kMAXMotionTrapezoidal));
         leftConfig.closedLoop.outputRange(ElevatorConstants.kMIN_OUTPUT, ElevatorConstants.kMAX_OUTPUT);
 
         rightConfig.idleMode(IdleMode.kBrake);
@@ -68,7 +74,7 @@ public class CANElevatorSubsystem extends SubsystemBase {
     public void setPosition(double targetRotations) {
         this.setpoint = targetRotations;
         // Use kG for gravity feedforward
-        pidController.setReference(targetRotations, ControlType.kPosition, ClosedLoopSlot.kSlot0, ElevatorConstants.kG);
+        pidController.setReference(targetRotations, ControlType.kMAXMotionPositionControl, ClosedLoopSlot.kSlot0, ElevatorConstants.kG);
     }
 
     /**
