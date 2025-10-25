@@ -82,7 +82,7 @@ public class NavXPigeon2 {
   }
 
   public Rotation2d getRotation2d() {
-    return Rotation2d.fromDegrees(getYaw().getValueAsDouble());
+    return Rotation2d.fromDegrees(-getYaw().getValueAsDouble());
   }
 
   public AHRS getAhrs() { return navx; }

@@ -10,7 +10,7 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 
 public class AutoHelpers {
 
-  public static final double kMaxLinearVelocity = 3.5;
+  public static final double kMaxLinearVelocity = 3.0;
   public static final double kMaxLinearAcceleration = 2.5;
   public static final double kMaxLinearVelocityPerSide = 3.5;
 

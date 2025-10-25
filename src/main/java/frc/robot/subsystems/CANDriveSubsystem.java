@@ -63,7 +63,7 @@ public class CANDriveSubsystem extends SubsystemBase {
         configureDriveTalon(leftLeader, false);   // Left side inverted mechanically?
         configureDriveTalon(rightLeader, true); // Right side not inverted
                 // Configure orientation so positive rotor aligns with your configured inversion
-        leftLeader.getSimState().Orientation = ChassisReference.CounterClockwise_Positive;
+        leftLeader.getSimState().Orientation = ChassisReference.Clockwise_Positive;
         rightLeader.getSimState().Orientation = ChassisReference.Clockwise_Positive;
 
         // Followers mirror their leaders
@@ -95,6 +95,7 @@ public class CANDriveSubsystem extends SubsystemBase {
 
         // Motion Magic accel in mechanism RPS^2
         var mm = new MotionMagicConfigs();
+        mm.MotionMagicCruiseVelocity = DriveConstants.MAX_SPEED_MPS;
         mm.MotionMagicAcceleration = DriveConstants.MAX_ACCELERATION_MPS_SQ;
         cfg.MotionMagic = mm;
 
@@ -126,7 +127,15 @@ public class CANDriveSubsystem extends SubsystemBase {
     public void arcadeDrive(double metersPerSecond, double radiansPerSec) {
         double vx = metersPerSecond;
         double wz = radiansPerSec;
-        setChassisSpeeds(new ChassisSpeeds(vx, 0.0, wz));
+        setChassisSpeedsTeleop(new ChassisSpeeds(vx, 0.0, wz));
+    }
+    public void setChassisSpeedsTeleop(ChassisSpeeds speeds) {
+        // var newSpeeds = new ChassisSpeeds(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond);
+        var wheelSpeeds = kinematics.toWheelSpeeds(speeds);
+        // wheelSpeeds.desaturate(DriveConstants.MAX_SPEED_MPS);
+
+        leftLeader.setControl(mmvLeft.withVelocity(wheelSpeeds.leftMetersPerSecond));
+        rightLeader.setControl(mmvRight.withVelocity(wheelSpeeds.rightMetersPerSecond));
     }
 
     /** Drives using field units. */
@@ -166,7 +175,7 @@ public class CANDriveSubsystem extends SubsystemBase {
     public Rotation2d getRotation2d() {
         return RobotBase.isReal()
         ? pigeon.getRotation2d()
-        : Rotation2d.fromRadians((rightPositionMeters - leftPositionMeters) / DriveConstants.TRACK_WIDTH_METERS);
+        : (Rotation2d.fromRadians(-(leftPositionMeters - rightPositionMeters) / DriveConstants.TRACK_WIDTH_METERS));
         // Use the gyro angle for odometry (sim updates it below)
         // return pigeon.getRotation2d();
     }
@@ -209,7 +218,7 @@ public class CANDriveSubsystem extends SubsystemBase {
         4.1, // MOI of 2.1 kg m^2 (from CAD model).
         50.0, // Mass of the robot is 26.5 kg.
         DriveConstants.WHEEL_RADIUS_METERS, // Robot uses 3" radius (6" diameter) wheels.
-        0.65, // Distance between wheels is _ meters.
+        0.60, // Distance between wheels is _ meters.
         null // VecBuilder.fill(0.001, 0.001, 0.001, 0.1, 0.1, 0.005, 0.005)
     );
 
@@ -220,8 +229,8 @@ public class CANDriveSubsystem extends SubsystemBase {
         var rightSim = rightLeader.getSimState();
 
         // Set supply voltage (battery)
-        leftLeader.getSimState().setSupplyVoltage(RobotController.getBatteryVoltage());
-        rightLeader.getSimState().setSupplyVoltage(RobotController.getBatteryVoltage());
+        leftSim.setSupplyVoltage(RobotController.getBatteryVoltage());
+        rightSim.setSupplyVoltage(RobotController.getBatteryVoltage());
         m_driveSim.setInputs(
             leftSim.getMotorVoltage(),
             rightSim.getMotorVoltage()

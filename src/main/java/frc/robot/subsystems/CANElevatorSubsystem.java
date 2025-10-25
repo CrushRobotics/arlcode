@@ -39,8 +39,8 @@ public class CANElevatorSubsystem extends SubsystemBase {
     public final DoubleSubscriber kP = DogLog.tunable("/Elevator/P", ElevatorConstants.kP);
     public final DoubleSubscriber kG = DogLog.tunable("/Elevator/G", ElevatorConstants.kG);
 
-    public final DoubleSubscriber kMaxVelocityRPS = DogLog.tunable("/Elevator/Max Velocity RPS", 350.0);
-    public final DoubleSubscriber kMaxAccelRPS2 = DogLog.tunable("/Elevator/Max Accel RPS2", 120.0);
+    public final DoubleSubscriber kMaxVelocityRPS = DogLog.tunable("/Elevator/Max Velocity RPS", 150.0);
+    public final DoubleSubscriber kMaxAccelRPS2 = DogLog.tunable("/Elevator/Max Accel RPS2", 100.0);
 
     public ProfiledPIDController trapezoidController = new ProfiledPIDController(kP.get(), 0, 0, new Constraints(kMaxVelocityRPS.get(), kMaxAccelRPS2.get()));
 

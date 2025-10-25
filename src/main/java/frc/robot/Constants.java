@@ -60,9 +60,9 @@ public final class Constants {
 
         // --- Robot Speed Limits ---
         // TODO: Tune these values based on robot performance and testing.
-        public static final double MAX_SPEED_MPS = 3.5; // Meters per second
-        public static final double MAX_SPEED_MPS_PER_SIDE = 4.0; // Meters per second
-        public static final double MAX_ACCELERATION_MPS_SQ = 25.0; // Meters per second squared
+        public static final double MAX_SPEED_MPS = 3.0; // Meters per second
+        public static final double MAX_SPEED_MPS_PER_SIDE = 3.5; // Meters per second
+        public static final double MAX_ACCELERATION_MPS_SQ = 35.0; // Meters per second squared
         public static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.PI * 1.5; // Radians per second
 
         // Ramsete Controller parameters (defaults are usually okay)
@@ -126,7 +126,7 @@ public final class Constants {
         public static final int ELEVATOR_FOLLOWER_ID = 4;
 
         // TODO: Tune Elevator PID gains for position control
-        public static final double kP = 0.4;
+        public static final double kP = 0.2;
         public static final double kI = 0.0;
         public static final double kD = 0.0;
         public static final double kF = 0.3; // Feedforward - velocity
@@ -135,8 +135,8 @@ public final class Constants {
         public static final double kMAX_OUTPUT = 0.95;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings at desired heights.
-        public static final double L2_POSITION_ROTATIONS = 9.64;
-        public static final double L3_POSITION_ROTATIONS = 31.6;
+        public static final double L2_POSITION_ROTATIONS = 7.54; // 7.54 + 2.1
+        public static final double L3_POSITION_ROTATIONS = 29.5; //29.5 + 2.1
         public static final double LOADING_POSITION_ROTATIONS = 55.6;
         public static final double HOME_POSITION_ROTATIONS = 0.;
         // TODO: Tune manual control speeds.
@@ -167,8 +167,8 @@ public final class Constants {
         public static final double kMAX_OUTPUT = 1.0;
         public static final double kPOSITION_TOLERANCE = 0.5; // Rotations - tune based on acceptable error
         // TODO: Tune these preset positions based on encoder readings.
-        public static final double L2_POSITION_ROTATIONS = -6.1;
-        public static final double L3_POSITION_ROTATIONS = -6.1;
+        public static final double L2_POSITION_ROTATIONS = -3.14;
+        public static final double L3_POSITION_ROTATIONS = -3.14;
         public static final double HOME_POSITION_ROTATIONS = 0.0; // Assumed zero point
         public static final double LOADING_POSITION_ROTATIONS = 50.0;
         // TODO: Tune manual control speed.

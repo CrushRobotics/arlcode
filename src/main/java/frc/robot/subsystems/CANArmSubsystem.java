@@ -33,8 +33,8 @@ public class CANArmSubsystem extends SubsystemBase {
     private double setpoint;
 
     public final DoubleSubscriber kP = DogLog.tunable("/Arm/P", ArmConstants.kP);
-    public final DoubleSubscriber kMaxVelocityRPS = DogLog.tunable("/Arm/Max Velocity RPS", 400.0);
-    public final DoubleSubscriber kMaxAccelRPS2 = DogLog.tunable("/Arm/Max Accel RPS2", 120.0);
+    public final DoubleSubscriber kMaxVelocityRPS = DogLog.tunable("/Arm/Max Velocity RPS", 150.0);
+    public final DoubleSubscriber kMaxAccelRPS2 = DogLog.tunable("/Arm/Max Accel RPS2", 100.0);
 
     public ProfiledPIDController trapezoidController = new ProfiledPIDController(kP.get(), 0, 0, new Constraints(kMaxVelocityRPS.get(), kMaxAccelRPS2.get()));
 
