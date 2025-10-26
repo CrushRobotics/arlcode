@@ -185,8 +185,8 @@ public class RobotContainer {
           double rotLimited = rot;
 
           // Apply cubic curve for finer control
-          double fwdCubic = Math.copySign(fwdLimited * fwdLimited * fwdLimited, fwdLimited);
-          double rotCubic = Math.copySign(rotLimited * rotLimited * rotLimited, rotLimited);
+          double fwdCubic = Math.copySign(fwdLimited * fwdLimited, fwdLimited);
+          double rotCubic = Math.copySign(rotLimited * rotLimited, rotLimited);
 
           driveSubsystem.arcadeDrive(fwdCubic * DriveConstants.MAX_SPEED_MPS, rotCubic * DriveConstants.MAX_ANGULAR_SPEED_RAD_PER_SEC);
       },
@@ -276,6 +276,7 @@ public class RobotContainer {
     // System.out.println("Attempting to reset Odometry and Gyro to Limelight...");
     // Prefer right limelight, fallback to left
     LimelightHelpers.PoseEstimate limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-right");
+    LimelightHelpers.PoseEstimate limelightPoseEstimateMT1 = visionSubsystem.getPoseEstimateMT1("limelight-right");
     String source = "limelight-right";
 
     if (limelightPoseEstimate == null || !LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
@@ -287,11 +288,11 @@ public class RobotContainer {
         // System.out.println("Valid Pose Estimate found from " + source + ": " + limelightPoseEstimate.pose);
 
         // 1. Reset the Pose Estimator
-        localizationSubsystem.resetPose(limelightPoseEstimate.pose);
+        localizationSubsystem.resetPose(limelightPoseEstimateMT1.pose);
         // System.out.println("Pose Estimator reset to: " + limelightPoseEstimate.pose);
 
         // 2. Reset the NavX Gyro Yaw
-        driveSubsystem.getPigeon().setYaw(limelightPoseEstimate.pose.getRotation());
+        driveSubsystem.getPigeon().setYaw(limelightPoseEstimateMT1.pose.getRotation());
         // System.out.println("NavX Yaw reset to: " + limelightPoseEstimate.pose.getRotation().getDegrees());
 
     } else {

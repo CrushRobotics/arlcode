@@ -87,6 +87,13 @@ public class VisionSubsystem extends SubsystemBase {
         // We use the wpiBlue coordinate system by default.
         return LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
     }
+    public PoseEstimate getPoseEstimateMT1(String limelightName) {
+        if (RobotBase.isSimulation()) {
+            return this.simulatedPoseEstimate;
+        }
+        // We use the wpiBlue coordinate system by default.
+        return LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
+    }
 
     /**
      * Updates the vision system with a simulated pose estimate. This is only used in simulation.

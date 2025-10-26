@@ -87,12 +87,42 @@ public class LocalizationSubsystem extends SubsystemBase {
              poseEstimator.addVisionMeasurement(
                 visionPoseEstimate.pose, 
                 visionPoseEstimate.timestampSeconds);
+            if (Math.abs(driveSubsystem.getChassisSpeeds().vxMetersPerSecond) <  0.1 && Math.abs(driveSubsystem.getChassisSpeeds().omegaRadiansPerSecond) < 0.5) {
+                resetOdometryAndGyroToLimelight();
+            }
         } else {
             // DEBUG: If we don't add a measurement, explicitly say so.
             SmartDashboard.putBoolean("Localization/" + limelightName + "/AddingVisionMeasurement", false);
         }
     }
 
+    public void resetOdometryAndGyroToLimelight() {
+        // System.out.println("Attempting to reset Odometry and Gyro to Limelight...");
+        // Prefer right limelight, fallback to left
+        LimelightHelpers.PoseEstimate limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-right");
+        LimelightHelpers.PoseEstimate limelightPoseEstimateMT1 = visionSubsystem.getPoseEstimateMT1("limelight-right");
+        String source = "limelight-right";
+    
+        if (limelightPoseEstimate == null || !LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
+            limelightPoseEstimate = visionSubsystem.getPoseEstimate("limelight-left");
+            source = "limelight-left";
+        }
+    
+        if (limelightPoseEstimate != null && LimelightHelpers.validPoseEstimate(limelightPoseEstimate)) {
+            // System.out.println("Valid Pose Estimate found from " + source + ": " + limelightPoseEstimate.pose);
+    
+            // 1. Reset the Pose Estimator
+            resetPose(limelightPoseEstimateMT1.pose);
+            // System.out.println("Pose Estimator reset to: " + limelightPoseEstimate.pose);
+    
+            // 2. Reset the NavX Gyro Yaw
+            driveSubsystem.getPigeon().setYaw(limelightPoseEstimateMT1.pose.getRotation());
+            // System.out.println("NavX Yaw reset to: " + limelightPoseEstimate.pose.getRotation().getDegrees());
+    
+        } else {
+            System.err.println("Reset Odometry/Gyro to Limelight FAILED: No valid pose estimate found from either camera.");
+        }
+    }
 
     /**
      * @return The current estimated pose of the robot.

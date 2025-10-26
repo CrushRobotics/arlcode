@@ -60,10 +60,10 @@ public final class Constants {
 
         // --- Robot Speed Limits ---
         // TODO: Tune these values based on robot performance and testing.
-        public static final double MAX_SPEED_MPS = 3.0; // Meters per second
-        public static final double MAX_SPEED_MPS_PER_SIDE = 3.5; // Meters per second
+        public static final double MAX_SPEED_MPS = 3.5; // Meters per second
+        public static final double MAX_SPEED_MPS_PER_SIDE = 4.0; // Meters per second
         public static final double MAX_ACCELERATION_MPS_SQ = 35.0; // Meters per second squared
-        public static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.PI * 1.5; // Radians per second
+        public static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.PI * 2.5; // Radians per second
 
         // Ramsete Controller parameters (defaults are usually okay)
         public static final double RAMSETE_B = 2.0;

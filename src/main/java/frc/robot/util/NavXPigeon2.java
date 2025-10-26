@@ -54,7 +54,7 @@ public class NavXPigeon2 {
     this.navx = ahrs;
 
     // Negate to make CCW positive (WPILib convention).
-    yaw = new StatusSignalDouble(() -> MathUtil.inputModulus(-navx.getAngle(), -180, 180));
+    yaw = new StatusSignalDouble(() -> MathUtil.inputModulus(navx.getAngle(), -180, 180));
     pitch = new StatusSignalDouble(() -> navx.getPitch());
     roll  = new StatusSignalDouble(() -> navx.getRoll());
   }
